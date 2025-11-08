@@ -108,7 +108,7 @@ const MainTabs = () => {
 const MainNavigator = () => {
   return (
     <Stack.Navigator
-      initialRouteName="Loading" 
+      initialRouteName="Onboarding" 
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',

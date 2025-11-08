@@ -17,7 +17,7 @@
     "done": "Hoàn thành",
     "retry": "Thử lại",
     "refresh": "Làm mới",
-    "warning":"Cảnh báo"
+    "warning": "Cảnh báo"
   },
   "referral": {
     "shareMessage": "Chia sẻ liên kết giới thiệu của bạn",
@@ -37,12 +37,12 @@
     "endChatMessage": "Bạn có chắc chắn muốn kết thúc cuộc trò chuyện này không?",
     "endChat": "Kết thúc"
   },
-    "auth": {
-      "verifyEmailRequired": "Xác thực email",
-      "verifyEmailToContinue": "Vui lòng xác thực email để tiếp tục",
-      "referralCode": "Mã giới thiệu",
-      "enterReferralCode": "Nhập mã giới thiệu (nếu có)",
-      "invalidReferralCode": "Mã giới thiệu không hợp lệ",
+  "auth": {
+    "verifyEmailRequired": "Xác thực email",
+    "verifyEmailToContinue": "Vui lòng xác thực email để tiếp tục",
+    "referralCode": "Mã giới thiệu",
+    "enterReferralCode": "Nhập mã giới thiệu (nếu có)",
+    "invalidReferralCode": "Mã giới thiệu không hợp lệ",
     "login": "Đăng nhập MIMO VIP",
     "logout": "Đăng xuất",
     "register": "Đăng ký",
@@ -103,14 +103,14 @@
     "strong": "Mạnh"
   },
   "onboarding": {
-    "welcomeTitle": "Chào mừng đến với MIMO",
-    "welcomeDescription": "Ví kỹ thuật số đáng tin cậy của bạn cho các giao dịch an toàn và liền mạch.",
-    "ekycTitle": "eKYC Nhanh",
-    "ekycDescription": "Xác thực danh tính nhanh chóng và an toàn để bạn yên tâm.",
-    "usdtVndTitle": "USDT & VND",
-    "usdtVndDescription": "Dễ dàng nạp và rút USDT và VND với tỷ giá cạnh tranh.",
-    "securityTitle": "Bảo mật Hàng đầu",
-    "securityDescription": "Mã hóa tiên tiến và bảo mật đa lớp để bảo vệ tài sản của bạn.",
+    "welcomeTitle": "Chào mừng đến với GreenEduMap",
+    "welcomeDescription": "Bản đồ 3D kết nối Môi trường, Giáo dục và Năng lượng xanh của thành phố bạn.",
+    "mapTitle": "Dữ liệu Môi trường Trực quan",
+    "mapDescription": "Theo dõi chất lượng không khí (AQI), thời tiết và các điểm năng lượng xanh theo thời gian thực.",
+    "aiTitle": "Gợi ý Xanh từ AI",
+    "aiDescription": "Nhận các đề xuất hành động và khám phá các khóa học về môi trường dựa trên phân tích dữ liệu thông minh.",
+    "communityTitle": "Chung tay vì Thành phố",
+    "communityDescription": "Gửi phản hồi, báo cáo vấn đề và chia sẻ ý tưởng để xây dựng một tương lai xanh hơn.",
     "getStarted": "Bắt đầu"
   },
   "otp": {
@@ -494,7 +494,7 @@
     "ekycFailed": "Gửi kết quả lên máy chủ thất bại.",
     "cardFrontInvalid": "Giấy tờ mặt trước",
     "cardFrontInvalidMessage": "Giấy tờ không hợp lệ, vui lòng chụp lại.",
-    "cardRearInvalid": "Giấy tờ mặt sau", 
+    "cardRearInvalid": "Giấy tờ mặt sau",
     "cardRearInvalidMessage": "Giấy tờ không hợp lệ, vui lòng chụp lại.",
     "faceInvalid": "Chân dung",
     "faceInvalidMessage": "Không nhận diện được người thật, vui lòng chụp lại.",
