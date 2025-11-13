@@ -1,10 +1,9 @@
 import { Platform } from 'react-native';
 
 export const COLORS = {
-  // Brand Colors
-  primary: 'black',
-  // F3BA2F
-  secondary: '#181A20',
+  // Brand Colors - GreenEduMap Theme
+  primary: '#03A66D', // Main green color for environmental theme
+  secondary: '#0ECB81', // Light green for accents
   background: '#FFFFFF',
   backgroundDark: '#0B0E11',
   
@@ -15,13 +14,19 @@ export const COLORS = {
   textDarkLight: '#B7BDC6',
   
   // Status Colors
-  success: '#03A66D',
+  success: '#03A66D', // Green for success/environmental actions
   successLight: '#E4F4ED',
   error: '#CF304A',
   errorLight: '#FBEBED',
   warning: '#F0B90B',
   warningLight: '#FEF6D8',
-  info: '#0ECB81',
+  info: '#0ECB81', // Light green for info
+  infoLight: '#E4F4ED',
+  
+  // Environmental Colors
+  environmental: '#03A66D', // Primary environmental green
+  environmentalLight: '#0ECB81', // Light environmental green
+  environmentalDark: '#028A5A', // Dark environmental green
   
   // UI Elements
   border: '#E6E8EA',
@@ -36,8 +41,9 @@ export const COLORS = {
   overlay: 'rgba(0, 0, 0, 0.5)',
   overlayDark: 'rgba(255, 255, 255, 0.1)',
   
-  // Gradients
-  gradientYellow: ['#F3BA2F', '#F0B90B'],
+  // Gradients - Environmental Theme
+  gradientGreen: ['#03A66D', '#0ECB81'], // Green gradient
+  gradientEnvironmental: ['#028A5A', '#03A66D'], // Environmental gradient
   gradientDark: ['#1E2329', '#0B0E11'],
 };
 
@@ -110,7 +116,7 @@ export const theme = {
       shadowRadius: 16,
       elevation: 8,
     },
-    yellow: {
+    green: {
       shadowColor: COLORS.primary,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.2,

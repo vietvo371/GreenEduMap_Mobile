@@ -108,7 +108,7 @@ const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>📚 Learn</Text>
+          <Text style={styles.headerTitle}>Learn</Text>
           <Text style={styles.headerSubtitle}>Environmental Education</Text>
         </View>
       </View>

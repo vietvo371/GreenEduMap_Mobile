@@ -111,7 +111,7 @@ const ActionsScreen: StackScreen<'Actions'> = ({ navigation }) => {
                 description: `Completed ${example.toLowerCase()} action`,
                 carbonSaved: Math.random() * 3 + 0.5, // Random 0.5-3.5kg
               });
-              Alert.alert('Success!', `${example} action logged! 🌱`);
+              Alert.alert('Success!', `${example} action logged!`);
             } catch (error) {
               Alert.alert('Error', 'Failed to log action');
             } finally {
@@ -139,7 +139,7 @@ const ActionsScreen: StackScreen<'Actions'> = ({ navigation }) => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>🌱 Green Actions</Text>
+          <Text style={styles.headerTitle}>Green Actions</Text>
           <Text style={styles.headerSubtitle}>Track Your Impact</Text>
         </View>
         <TouchableOpacity onPress={handleAddAction} style={styles.addButton}>
@@ -288,7 +288,7 @@ const ActionsScreen: StackScreen<'Actions'> = ({ navigation }) => {
                       {action.description}
                     </Text>
                     <Text style={styles.actionItemCarbon}>
-                      💚 {action.carbonSaved} kg CO₂ saved
+                      {action.carbonSaved} kg CO₂ saved
                     </Text>
                   </View>
                 </View>

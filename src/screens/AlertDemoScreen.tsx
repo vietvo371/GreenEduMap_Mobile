@@ -14,14 +14,14 @@ const AlertDemoScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.header}>🎨 Custom Alert Demo</Text>
+        <Text style={styles.header}>Custom Alert Demo</Text>
         <Text style={styles.subheader}>
           Test các loại alert mới thay thế Alert.alert mặc định
         </Text>
 
         {/* Success Alert */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>✅ Success Alert</Text>
+          <Text style={styles.sectionTitle}>Success Alert</Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: theme.colors.success }]}
             onPress={() => {
@@ -53,7 +53,7 @@ const AlertDemoScreen = () => {
 
         {/* Error Alert */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>❌ Error Alert</Text>
+          <Text style={styles.sectionTitle}>Error Alert</Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: theme.colors.error }]}
             onPress={() => {
@@ -84,7 +84,7 @@ const AlertDemoScreen = () => {
 
         {/* Warning Alert */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚠️ Warning Alert</Text>
+          <Text style={styles.sectionTitle}>Warning Alert</Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: theme.colors.warning }]}
             onPress={() => {
@@ -100,7 +100,7 @@ const AlertDemoScreen = () => {
 
         {/* Info Alert */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ℹ️ Info Alert</Text>
+          <Text style={styles.sectionTitle}>Info Alert</Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: theme.colors.info }]}
             onPress={() => {
@@ -155,7 +155,7 @@ const AlertDemoScreen = () => {
 
         {/* Multiple Buttons */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎯 Custom Buttons</Text>
+          <Text style={styles.sectionTitle}>Custom Buttons</Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: theme.colors.primary }]}
             onPress={() => {
@@ -198,7 +198,7 @@ const AlertDemoScreen = () => {
 
         {/* Alert without animation */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🚫 Không có Animation</Text>
+          <Text style={styles.sectionTitle}>Không có Animation</Text>
           <TouchableOpacity
             style={[styles.button, { backgroundColor: '#666' }]}
             onPress={() => {
@@ -216,7 +216,7 @@ const AlertDemoScreen = () => {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            🎨 Thiết kế tối ưu cho iOS
+            Thiết kế tối ưu cho iOS
           </Text>
           <Text style={styles.footerSubtext}>
             Thay thế Alert.alert mặc định

@@ -24,7 +24,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ navigation }) => {
     const checkLogin = async () => {
       try {
         await new Promise((resolve: any) => setTimeout(resolve, 1500));
-        const res = await api.get('/vip/checklogin');
+        const res = await api.get('/checklogin');
         if (res.data?.status) {
           navigation.replace('MainTabs');
         } else {

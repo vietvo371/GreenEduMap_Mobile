@@ -78,7 +78,7 @@ const MapScreen: StackScreen<'Map'> = ({ navigation }) => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>🌍 GreenEduMap</Text>
+          <Text style={styles.headerTitle}>GreenEduMap</Text>
           <Text style={styles.headerSubtitle}>Environmental Monitoring</Text>
         </View>
         <TouchableOpacity onPress={handleLocationSearch} style={styles.searchButton}>
@@ -237,7 +237,7 @@ const MapScreen: StackScreen<'Map'> = ({ navigation }) => {
               {aiInsights.recommendedActions[0].description}
             </Text>
             <Text style={styles.recommendationSavings}>
-              💚 Save {aiInsights.recommendedActions[0].potentialCarbonSavings} kg CO2
+              Save {aiInsights.recommendedActions[0].potentialCarbonSavings} kg CO2
             </Text>
           </View>
         )}

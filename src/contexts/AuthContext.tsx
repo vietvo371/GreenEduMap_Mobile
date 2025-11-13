@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi, User, SignUpData } from '../utils/authApi';
 import { EkycVerifyRequest, EkycVerifyResponse } from '../types/ekyc';
+import api from '../utils/Api';
+import { saveToken, saveUser } from '../utils/TokenManager';
 
 // ============================================================================
 // TYPES - GreenEduMap User Roles & Data Structures
@@ -160,6 +162,31 @@ interface AIInsights {
 }
 
 /**
+ * Login validation result
+ */
+export interface LoginValidationResult {
+  isValid: boolean;
+  errors: {
+    identifier?: string;
+    password?: string;
+  };
+}
+
+/**
+ * Login result
+ */
+export interface LoginResult {
+  success: boolean;
+  needsEmailVerification?: boolean;
+  identifier?: string;
+  error?: string;
+  errors?: {
+    identifier?: string;
+    password?: string;
+  };
+}
+
+/**
  * Main Auth Context Data
  */
 interface AuthContextData {
@@ -170,7 +197,8 @@ interface AuthContextData {
   userRole: UserRole | null;
   
   // Auth Methods
-  signIn: (credentials: { identifier: string; type: string }) => Promise<void>;
+  validateLogin: (identifier: string, password: string, isPhoneNumber: boolean) => LoginValidationResult;
+  signIn: (credentials: { identifier: string; password: string; type: 'email' | 'phone' }) => Promise<LoginResult>;
   signUp: (userData: SignUpData) => Promise<void>;
   signOut: () => Promise<void>;
   verifyEkyc: (data: EkycVerifyRequest) => Promise<EkycVerifyResponse>;
@@ -267,10 +295,87 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signIn = async (credentials: { identifier: string; type: string }) => {
+  /**
+   * Validate login form
+   * Returns error keys that can be translated in the UI
+   */
+  const validateLogin = (identifier: string, password: string, isPhoneNumber: boolean): LoginValidationResult => {
+    const errors: { identifier?: string; password?: string } = {};
+
+    // Validate identifier (email or phone)
+    if (!identifier) {
+      errors.identifier = isPhoneNumber ? 'PHONE_REQUIRED' : 'EMAIL_REQUIRED';
+    } else if (isPhoneNumber) {
+      if (!/^\d{9,10}$/.test(identifier)) {
+        errors.identifier = 'VALID_PHONE';
+      }
+    } else {
+      if (!/\S+@\S+\.\S+/.test(identifier)) {
+        errors.identifier = 'VALID_EMAIL';
+      }
+    }
+
+    // Validate password
+    if (!password) {
+      errors.password = 'PASSWORD_REQUIRED';
+    } else if (password.length < 6) {
+      errors.password = 'PASSWORD_MIN_LENGTH';
+    }
+
+    return {
+      isValid: Object.keys(errors).length === 0,
+      errors,
+    };
+  };
+
+  /**
+   * Sign in user with validation and error handling
+   */
+  const signIn = async (credentials: { identifier: string; password: string; type: 'email' | 'phone' }): Promise<LoginResult> => {
     try {
-      const result = await authApi.signIn(credentials);
-      setUser(result.user);
+      console.log('Login attempt:', credentials.identifier);
+      console.log('Login type:', credentials.type);
+
+      // Call the API
+      const response = await api.post('/auth/login', {
+        username: credentials.identifier,
+        password: credentials.password,
+        type: credentials.type,
+      });
+
+      console.log('Login response:', response.data);
+
+      // Handle API response
+      if (response.data.status === false) {
+        // If account email is not activated yet
+        if (response.data.is_active_mail === false) {
+          return {
+            success: false,
+            needsEmailVerification: true,
+            identifier: credentials.identifier,
+            error: response.data.message || 'Email chưa được xác thực. Vui lòng xác thực để tiếp tục.',
+          };
+        } else {
+          // Other errors
+          return {
+            success: false,
+            error: response.data.message || 'Login failed',
+            errors: {
+              identifier: response.data.message,
+            },
+          };
+        }
+      }
+
+      // Login successful
+      console.log('Login successful:', response.data.data);
+      
+      // Save user and token
+      await saveUser(response.data.data);
+      await saveToken(response.data.token);
+      
+      // Update context state
+      setUser(response.data.data);
       
       // Load user's environmental data after sign in
       await Promise.all([
@@ -279,9 +384,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loadEducationalProgress(),
         refreshAIInsights(),
       ]);
+
+      return {
+        success: true,
+      };
     } catch (error: any) {
-      console.log('Sign in error:', error);
-      throw error;
+      console.log('Login error:', error);
+
+      // Handle different types of errors
+      let errorMessage = 'Login failed. Please try again.';
+      const errors: { identifier?: string; password?: string } = {};
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+        errors.identifier = errorMessage;
+      } else if (error.response?.data?.errors) {
+        // Handle validation errors from API
+        const apiErrors = error.response.data.errors;
+        const firstError = Object.values(apiErrors)[0];
+        errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+        errors.identifier = errorMessage;
+      } else if (error.message) {
+        errorMessage = error.message;
+        errors.identifier = errorMessage;
+      }
+
+      return {
+        success: false,
+        error: errorMessage,
+        errors,
+      };
     }
   };
 
@@ -544,6 +676,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         userRole,
+        validateLogin,
         signIn,
         signUp,
         signOut,

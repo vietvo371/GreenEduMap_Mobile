@@ -206,7 +206,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
             entering={FadeInDown.duration(600).delay(200).springify()}
           >
             <View style={styles.iconContainer}>
-              <Icon name="lock-reset" size={48} color={theme.colors.primary} />
+              <Icon name="lock-reset" size={48} color={theme.colors.success} />
             </View>
 
             <Text style={styles.title}>
@@ -235,7 +235,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
                   <Icon
                     name="email-outline"
                     size={16}
-                    color={!isPhoneNumber ? theme.colors.primary : theme.colors.textLight}
+                    color={!isPhoneNumber ? theme.colors.success : theme.colors.textLight}
                   />
                   <Text style={[
                     styles.inputTypeText,
@@ -254,7 +254,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
                   <Icon
                     name="phone-outline"
                     size={16}
-                    color={isPhoneNumber ? theme.colors.primary : theme.colors.textLight}
+                    color={isPhoneNumber ? theme.colors.success : theme.colors.textLight}
                   />
                   <Text style={[
                     styles.inputTypeText,
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: theme.colors.primary + '10',
+    backgroundColor: theme.colors.success + '15',
   },
   decorativeCircle2: {
     position: 'absolute',
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: theme.colors.secondary + '10',
+    backgroundColor: theme.colors.info + '15',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: theme.colors.primary + '10',
+    backgroundColor: theme.colors.success + '15',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: theme.spacing.lg,
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily,
   },
   inputTypeTextActive: {
-    color: theme.colors.primary,
+    color: theme.colors.success,
   },
 
   input: {
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   backToLoginLinkText: {
-    color: theme.colors.primary,
+    color: theme.colors.success,
     fontFamily: theme.typography.fontFamily,
   },
 

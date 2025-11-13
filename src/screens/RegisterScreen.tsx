@@ -472,7 +472,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     >
       <View style={styles.formHeader}>
         <Text style={styles.formSubtitle}>
-          {t('auth.signUpJourney')}
+          {t('auth.signUpJourney') || 'Join us to protect our planet'}
         </Text>
         {renderStepIndicator()}
       </View>
@@ -539,14 +539,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
               style={styles.welcomeText}
               entering={FadeInDown.duration(800).delay(200).springify()}
             >
-              Join MIMO Trading
+              {t('auth.welcomeToGreenEduMap') || 'Welcome to GreenEduMap'}
             </Animated.Text>
 
             <Animated.Text
               style={styles.title}
               entering={FadeInDown.duration(800).delay(400).springify()}
             >
-              {t('auth.createAccount')}
+{t('auth.createAccount')}
             </Animated.Text>
           </Animated.View>
 
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: theme.colors.primary + '10',
+    backgroundColor: theme.colors.success + '15',
   },
   decorativeCircle2: {
     position: 'absolute',
@@ -636,7 +636,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: theme.colors.secondary + '10',
+    backgroundColor: theme.colors.info + '15',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -660,9 +660,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: theme.typography.fontFamily,
-    fontSize: 36,
-    color: "#f0b90b",
+    fontSize: 32,
+    color: theme.colors.success,
     marginBottom: theme.spacing.sm,
+    fontWeight: 'bold',
   },
   subtitle: {
     fontFamily: theme.typography.fontFamily,
@@ -731,7 +732,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.success,
   },
   stepDotCompleted: {
     backgroundColor: theme.colors.success,
@@ -753,7 +754,7 @@ const styles = StyleSheet.create({
   nextButton: {
     flex: 1,
     height: 48,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.success,
   },
 
   // Password Strength Styles
@@ -794,7 +795,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loginLinkText: {
-    color: theme.colors.primary,
+    color: theme.colors.success,
     fontFamily: theme.typography.fontFamily,
   },
   securityBadge: {

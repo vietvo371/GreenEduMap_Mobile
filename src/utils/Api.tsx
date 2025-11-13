@@ -1,10 +1,11 @@
 import axios from "axios";
-import { Alert, Platform } from 'react-native';
-import { deriveDashboardStats, deriveRecentBatches, mockUsers } from './mockData';
+import { Platform } from 'react-native';
 import { getToken, removeToken, saveToken } from "./TokenManager";
 import { navigate, resetTo } from "../navigation/NavigationService";
 import Geolocation from 'react-native-geolocation-service';
 import i18n from '../i18n';
+import { ErrorModalManager } from './ErrorModalManager.tsx';
+import env from '../config/env.ts';
 
 // Types
 export interface DashboardStats {
@@ -46,21 +47,16 @@ interface LocationData {
   long: number;
 }
 
-// Cache location to avoid repeated calls
 let cachedLocation: LocationData | null = null;
 let locationCacheTime = 0;
 const LOCATION_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-// Guard to prevent multiple simultaneous alerts
 let isShowingAuthAlert = false;
 
-// Function to get current location with caching
 const getCurrentLocation = (): Promise<LocationData | null> => {
   return new Promise((resolve) => {
-    // Return cached location if still valid
     const now = Date.now();
     if (cachedLocation && (now - locationCacheTime) < LOCATION_CACHE_DURATION) {
-      console.log('Using cached location:', cachedLocation);
       resolve(cachedLocation);
       return;
     }
@@ -72,42 +68,35 @@ const getCurrentLocation = (): Promise<LocationData | null> => {
           lat: latitude,
           long: longitude,
         };
-        console.log('Location obtained:', location);
-        // Cache the location
         cachedLocation = location;
         locationCacheTime = now;
         
         resolve(location);
       },
       (error) => {
-        console.log('Location error:', error.message);
         const defaultLocation = {
-          lat: 16.068882379104995,
-          long: 108.24535024604958,
+          lat: 16.068882,
+          long: 108.245350,
         };
         
-        // Cache default location too
         cachedLocation = defaultLocation;
         locationCacheTime = now;
         
         resolve(defaultLocation);
       },
       {
-        enableHighAccuracy: false, // Use less accurate but faster location
-        timeout: 1000, // Reduced timeout to 1 second
-        maximumAge: 300000, // 5 minutes cache
-        showLocationDialog: false, // Don't show system dialog
-        forceRequestLocation: false, // Use cached location if available
+        enableHighAccuracy: false,
+        timeout: 1000,
+        maximumAge: 300000,
+        showLocationDialog: false,
+        forceRequestLocation: false,
       }
     );
   });
 };
 
 
-const baseUrl = Platform.select({
-  ios: 'https://mimo.dragonlab.vn/api',
-  android: 'https://mimo.dragonlab.vn/api',
-});
+const baseUrl = env.API_URL + '/api';
 
 const api = axios.create({
   baseURL: baseUrl,
@@ -116,54 +105,44 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  // Handle redirects manually to avoid React Native networking issues
   maxRedirects: 0,
   validateStatus: function (status) {
-    // Accept status codes from 200 to 399
     return status >= 200 && status < 400;
   },
 });
 
 api.interceptors.request.use(async (config) => {
-  // Add Authorization header
   const token = await getToken();
+  console.log('language', i18n.language);
+  config.headers['x-Language'] = i18n.language || 'vi';
+
   if (token) {
     console.log('token', token);
     config.headers.Authorization = `Bearer ${token}`;
   }
   
-  // Get location asynchronously without blocking the request
   getCurrentLocation().then((location) => {
     if (location) {
       config.headers['x-location'] = JSON.stringify(location);
-      console.log('Location header added:', location);
     }
   }).catch((error) => {
-    console.log('Location error in interceptor:', error);
   });
 
   return config;
 });
 
-// Maximum number of retry attempts
 const MAX_RETRY_ATTEMPTS = 2;
 
-// Function to determine if we should retry the request
 const shouldRetry = (error: any, retryCount: number) => {
-  // Don't retry if we've exceeded max attempts
   if (retryCount >= MAX_RETRY_ATTEMPTS) return false;
-
-  // Don't retry for specific error codes
-  if (error.response?.status === 422) return false; // Validation errors
-  if (error.response?.status === 403) return false; // Permission denied
-
-  // Retry on network errors, timeouts, and 401s
+  if (error.response?.status === 422) return false;
+  if (error.response?.status === 403) return false;
   return (
-    !error.response || // Network error
-    error.code === 'ECONNABORTED' || // Timeout
-    /timeout/i.test(error.message) || // Timeout message
-    error.response.status === 401 || // Unauthorized
-    (error.response.status >= 500 && error.response.status <= 599) // Server errors
+    !error.response ||
+    error.code === 'ECONNABORTED' ||
+    /timeout/i.test(error.message) ||
+    error.response.status === 401 ||
+    (error.response.status >= 500 && error.response.status <= 599)
   );
 };
 
@@ -174,41 +153,23 @@ api.interceptors.response.use(
   async (error: any) => {
     const config = error.config;
     
-    // Initialize retry count if it doesn't exist
     config.retryCount = config.retryCount || 0;
     
-    // Check if we should retry the request
     if (shouldRetry(error, config.retryCount)) {
       config.retryCount += 1;
-      
-      // Exponential backoff delay
       const delayMs = Math.min(1000 * (2 ** config.retryCount), 10000);
+      await new Promise<void>(resolve => setTimeout(resolve, delayMs));
       
-      console.log(`Retrying request (attempt ${config.retryCount}/${MAX_RETRY_ATTEMPTS}) after ${delayMs}ms`);
-      
-      // Wait for the delay
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-      
-      // Retry the request
       return api(config);
     }
 
-    // If we're here, we've either exceeded retry attempts or shouldn't retry
-    
-    // Timeout handling
     if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message)) {
       console.log('Timeout after retries:', error);
       removeToken(); 
-      Alert.alert(i18n.t('errors.timeoutError'), i18n.t('errors.timeoutMessage'),
-        [           {
-            text: i18n.t('common.confirm'),
-            onPress: () => {
-              resetTo('Login');
-            },
-          },
-      ]
-      );
-      return Promise.reject(error);
+      ErrorModalManager.showTimeoutError(() => {
+        resetTo('Login');
+      });
+      return ;
     }
 
     if (error.response?.status === 422) {
@@ -216,27 +177,25 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401 || error.response?.status === 403) {
-      removeToken(); // enable if you want to clear token
-      // Prevent multiple simultaneous alerts
+      removeToken();
       if (!isShowingAuthAlert) {
         isShowingAuthAlert = true;
-        const title = i18n.t('errors.sessionExpired');
-        const message = error.response?.status === 401 
-          ? i18n.t('errors.sessionExpiredSandbox') 
-          : i18n.t('errors.accessDenied');
         
-        Alert.alert(title, message, [
-          {
-            text: i18n.t('common.confirm'),
-            onPress: () => {
-              isShowingAuthAlert = false; // Reset the guard
-              resetTo('Login');
-            },
-          },
-        ]);
+        if (error.response?.status === 401) {
+          ErrorModalManager.showSessionExpired(() => {
+            isShowingAuthAlert = false;
+            resetTo('Login');
+          });
+        } else {
+          ErrorModalManager.showAccessDenied(() => {
+            isShowingAuthAlert = false;
+            resetTo('Login');
+          });
+        }
       }
       
-      return Promise.reject(error);
+      // return Promise.reject(error);
+      return;
     }
 
     console.log('API error after retries:', {

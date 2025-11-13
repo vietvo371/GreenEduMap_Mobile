@@ -21,8 +21,6 @@ import { useAuth } from '../contexts/AuthContext';
 import InputCustom from '../component/InputCustom';
 import ButtonCustom from '../component/ButtonCustom';
 import LoadingOverlay from '../component/LoadingOverlay';
-import api from '../utils/Api';
-import { saveToken, saveUser } from '../utils/TokenManager';
 import LanguageSelector from '../component/LanguageSelector';
 import CountryCodePicker from '../component/CountryCodePicker';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
@@ -35,7 +33,7 @@ interface LoginScreenProps {
 const { width, height } = Dimensions.get('window');
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const { signIn } = useAuth();
+  const { validateLogin, signIn } = useAuth();
   const { t, getCurrentLanguage } = useTranslation();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -52,30 +50,46 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     flag: '🇻🇳',
   });
 
-
   const validateForm = () => {
-    const newErrors: { identifier?: string; password?: string } = {};
-
-    if (!identifier) {
-      newErrors.identifier = isPhoneNumber ? t('auth.phoneRequired') : t('auth.emailRequired');
-    } else if (isPhoneNumber) {
-      if (!/^\d{9,10}$/.test(identifier)) {
-        newErrors.identifier = t('auth.validPhone');
-      }
-    } else {
-      if (!/\S+@\S+\.\S+/.test(identifier)) {
-        newErrors.identifier = t('auth.validEmail');
+    const validation = validateLogin(identifier, password, isPhoneNumber);
+    
+    // Map error keys to translated messages
+    const translatedErrors: { identifier?: string; password?: string } = {};
+    if (validation.errors.identifier) {
+      const errorKey = validation.errors.identifier;
+      switch (errorKey) {
+        case 'PHONE_REQUIRED':
+          translatedErrors.identifier = t('auth.phoneRequired');
+          break;
+        case 'EMAIL_REQUIRED':
+          translatedErrors.identifier = t('auth.emailRequired');
+          break;
+        case 'VALID_PHONE':
+          translatedErrors.identifier = t('auth.validPhone');
+          break;
+        case 'VALID_EMAIL':
+          translatedErrors.identifier = t('auth.validEmail');
+          break;
+        default:
+          translatedErrors.identifier = errorKey;
       }
     }
-
-    if (!password) {
-      newErrors.password = t('auth.passwordRequired');
-    } else if (password.length < 6) {
-      newErrors.password = t('auth.passwordMinLength');
+    if (validation.errors.password) {
+      const errorKey = validation.errors.password;
+      switch (errorKey) {
+        case 'PASSWORD_REQUIRED':
+          translatedErrors.password = t('auth.passwordRequired');
+          break;
+        case 'PASSWORD_MIN_LENGTH':
+          translatedErrors.password = t('auth.passwordMinLength');
+          break;
+        default:
+          translatedErrors.password = errorKey;
+      }
     }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    
+    setErrors(translatedErrors);
+    return validation.isValid;
   };
 
   const handleInputTypeChange = (isPhone: boolean) => {
@@ -91,66 +105,46 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
     setLoading(true);
     try {
-      console.log('Login attempt:', identifier);
-      console.log('Login type:', isPhoneNumber ? 'phone' : 'email');
-      
-      // Call the API directly like in RegisterScreen
-      const response = await api.post('/auth/login', {
-        username: identifier,
-        password: password,
-        type: isPhoneNumber ? 'phone' : 'email'
-      });
-      console.log('Login response:', response.data);
-      if (response.data.status === false) {
-        // If account email is not activated yet, prompt to go to OTP verification
-        if (response.data.is_active_mail === false) {
-          AlertService.warning(
-            t('auth.verifyEmailRequired') || 'Email chưa được xác thực',
-            response.data.message || t('auth.verifyEmailToContinue') || 'Email của bạn chưa được xác thực. Vui lòng xác thực để tiếp tục.',
-            [
-              {
-                text: t('common.confirm'),
-                onPress: () => navigation.navigate('OTPVerification', {
-                  identifier: identifier,
-                  type: "email",
-                  flow: "register"
-                })
-              },
-              {
-                text: t('common.cancel'),
-                style: 'cancel'
-              }
-            ]
-          );
-        } else {
-          setErrors({
-            identifier: response.data.message
-          });
-        }
-        return;
-      }
-      console.log('Login successful:', response.data.data); 
-      await saveUser(response.data.data);
-      await saveToken(response.data.token);
+      // const result = await signIn({
+      //   identifier,
+      //   password,
+      //   type: isPhoneNumber ? 'phone' : 'email',
+      // });
       navigation.navigate('MainTabs');
-      
+
+      // if (result.success) {
+      //   // Login successful - navigate to main tabs
+      //   navigation.navigate('MainTabs');
+      // } else if (result.needsEmailVerification) {
+      //   // Email not verified - show alert and navigate to OTP verification
+      //   AlertService.warning(
+      //     t('auth.verifyEmailRequired') || 'Email chưa được xác thực',
+      //     result.error || t('auth.verifyEmailToContinue') || 'Email của bạn chưa được xác thực. Vui lòng xác thực để tiếp tục.',
+      //     [
+      //       {
+      //         text: t('common.confirm'),
+      //         onPress: () => navigation.navigate('OTPVerification', {
+      //           identifier: result.identifier || identifier,
+      //           type: 'email',
+      //           flow: 'register',
+      //         }),
+      //       },
+      //       {
+      //         text: t('common.cancel'),
+      //         style: 'cancel',
+      //       },
+      //     ]
+      //   );
+      // } else {
+      //   if (result.errors) {
+      //     setErrors(result.errors);
+      //   } else if (result.error) {
+      //     AlertService.error(t('auth.loginFailed'), result.error);
+      //   }
+      // }
     } catch (error: any) {
       console.log('Login error:', error);
-      
-      // Handle different types of errors
-      let errorMessage = 'Login failed. Please try again.';
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.response?.data?.errors) {
-        // Handle validation errors from API
-        const errors = error.response.data.errors;
-        const firstError = Object.values(errors)[0];
-        errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      AlertService.error(t('auth.loginFailed'), errorMessage);
+      AlertService.error(t('auth.loginFailed'), error.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -175,15 +169,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             style={styles.headerIconButton}
             onPress={() => setShowLanguageSelector(true)}
           >
-            <Image 
-              source={getCurrentLanguage() === 'vi' 
+            <Image
+              source={getCurrentLanguage() === 'vi'
                 ? require('../assets/images/logo_vietnam.jpg')
                 : require('../assets/images/logo_eng.png')
               }
               style={styles.languageFlag}
             />
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={styles.headerIconButton}
             onPress={() => navigation.navigate('Help')}
@@ -235,7 +229,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               style={styles.title}
               entering={FadeInDown.duration(800).delay(400).springify()}
             >
-              MIMO
+              GreenEduMap
             </Animated.Text>
           </Animated.View>
 
@@ -247,14 +241,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             <View style={styles.formHeader}>
               <Text style={styles.formTitle}>{t('auth.signIn')}</Text>
               <Text style={styles.formSubtitle}>
-                {t('auth.signInToAccount')}
+                {t('auth.signInToAccount') || 'Sign in to start your environmental journey'}
               </Text>
             </View>
 
             <View style={styles.form}>
               {/* Input Type Indicator */}
               <View style={styles.inputTypeIndicator}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[
                     styles.inputTypeTab,
                     !isPhoneNumber && styles.inputTypeTabActive
@@ -264,7 +258,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                   <Icon
                     name="email-outline"
                     size={16}
-                    color={!isPhoneNumber ? theme.colors.primary : theme.colors.textLight}
+                    color={!isPhoneNumber ? theme.colors.success : theme.colors.textLight}
                   />
                   <Text style={[
                     styles.inputTypeText,
@@ -273,7 +267,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                     {t('auth.email')}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[
                     styles.inputTypeTab,
                     isPhoneNumber && styles.inputTypeTabActive
@@ -283,7 +277,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                   <Icon
                     name="phone-outline"
                     size={16}
-                    color={isPhoneNumber ? theme.colors.primary : theme.colors.textLight}
+                    color={isPhoneNumber ? theme.colors.success : theme.colors.textLight}
                   />
                   <Text style={[
                     styles.inputTypeText,
@@ -474,7 +468,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: theme.colors.primary + '10',
+    backgroundColor: theme.colors.success + '15',
   },
   decorativeCircle2: {
     position: 'absolute',
@@ -483,7 +477,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: theme.colors.secondary + '10',
+    backgroundColor: theme.colors.info + '15',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -528,9 +522,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: theme.typography.fontFamily,
-    fontSize: 36,
-    color: "#f0b90b",
+    fontSize: 32,
+    color: theme.colors.success,
     marginBottom: theme.spacing.sm,
+    fontWeight: 'bold',
   },
   subtitle: {
     fontFamily: theme.typography.fontFamily,
@@ -609,7 +604,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.fontFamily,
   },
   inputTypeTextActive: {
-    color: theme.colors.primary,
+    color: theme.colors.success,
   },
 
   input: {
@@ -654,7 +649,7 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.primary,
+    color: theme.colors.success,
     fontFamily: theme.typography.fontFamily,
     textDecorationLine: 'underline',
   },
@@ -725,8 +720,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   registerLinkText: {
-    color: theme.colors.primary,
-    fontFamily: theme.typography.fontFamily, 
+    color: theme.colors.success,
+    fontFamily: theme.typography.fontFamily,
     textDecorationLine: 'underline',
   },
   helpSection: {
