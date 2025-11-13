@@ -10,8 +10,8 @@ import {
   ScrollView,
   SafeAreaView,
   Dimensions,
-  Alert,
 } from 'react-native';
+import { AlertService } from '../services/AlertService';
 import LinearGradient from 'react-native-linear-gradient';
 import Animated, { FadeInDown, FadeInUp, SlideInDown } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -23,8 +23,8 @@ import ButtonCustom from '../component/ButtonCustom';
 import LoadingOverlay from '../component/LoadingOverlay';
 import api from '../utils/Api';
 import { saveToken, saveUser } from '../utils/TokenManager';
-import LanguageSelector from '../components/LanguageSelector';
-import CountryCodePicker from '../components/CountryCodePicker';
+import LanguageSelector from '../component/LanguageSelector';
+import CountryCodePicker from '../component/CountryCodePicker';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -95,15 +95,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       console.log('Login type:', isPhoneNumber ? 'phone' : 'email');
       
       // Call the API directly like in RegisterScreen
-      const response = await api.post('/vip/login', {
-        email: identifier,
+      const response = await api.post('/auth/login', {
+        username: identifier,
         password: password,
+        type: isPhoneNumber ? 'phone' : 'email'
       });
       console.log('Login response:', response.data);
       if (response.data.status === false) {
         // If account email is not activated yet, prompt to go to OTP verification
         if (response.data.is_active_mail === false) {
-          Alert.alert(
+          AlertService.warning(
             t('auth.verifyEmailRequired') || 'Email chưa được xác thực',
             response.data.message || t('auth.verifyEmailToContinue') || 'Email của bạn chưa được xác thực. Vui lòng xác thực để tiếp tục.',
             [
@@ -129,8 +130,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         return;
       }
       console.log('Login successful:', response.data.data); 
-      await saveUser(response.data.data.admin);
-      await saveToken(response.data.data.token);
+      await saveUser(response.data.data);
+      await saveToken(response.data.token);
       navigation.navigate('MainTabs');
       
     } catch (error: any) {
@@ -149,14 +150,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         errorMessage = error.message;
       }
       
-      Alert.alert(t('auth.loginFailed'), errorMessage);
+      AlertService.error(t('auth.loginFailed'), errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSocialLogin = (provider: string) => {
-    Alert.alert('Coming Soon', `${provider} login will be available soon`);
+    AlertService.info('Coming Soon', `${provider} login will be available soon`);
   };
 
   return (
@@ -194,7 +195,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         <LanguageSelector
           visible={showLanguageSelector}
           onClose={() => setShowLanguageSelector(false)}
-          onSelect={(code) => {
+          onSelect={(code: string) => {
             // Handle language change
             console.log('Selected language:', code);
           }}
@@ -204,7 +205,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         <CountryCodePicker
           visible={showCountryPicker}
           onClose={() => setShowCountryPicker(false)}
-          onSelect={(country) => setSelectedCountry(country)}
+          onSelect={(country: any) => setSelectedCountry(country)}
           selectedCountry={selectedCountry}
         />
       </View>
@@ -234,7 +235,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               style={styles.title}
               entering={FadeInDown.duration(800).delay(400).springify()}
             >
-              MIMO VIP
+              MIMO
             </Animated.Text>
           </Animated.View>
 
@@ -252,7 +253,47 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
             <View style={styles.form}>
               {/* Input Type Indicator */}
-             
+              <View style={styles.inputTypeIndicator}>
+                <TouchableOpacity 
+                  style={[
+                    styles.inputTypeTab,
+                    !isPhoneNumber && styles.inputTypeTabActive
+                  ]}
+                  onPress={() => handleInputTypeChange(false)}
+                >
+                  <Icon
+                    name="email-outline"
+                    size={16}
+                    color={!isPhoneNumber ? theme.colors.primary : theme.colors.textLight}
+                  />
+                  <Text style={[
+                    styles.inputTypeText,
+                    !isPhoneNumber && styles.inputTypeTextActive
+                  ]}>
+                    {t('auth.email')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[
+                    styles.inputTypeTab,
+                    isPhoneNumber && styles.inputTypeTabActive
+                  ]}
+                  onPress={() => handleInputTypeChange(true)}
+                >
+                  <Icon
+                    name="phone-outline"
+                    size={16}
+                    color={isPhoneNumber ? theme.colors.primary : theme.colors.textLight}
+                  />
+                  <Text style={[
+                    styles.inputTypeText,
+                    isPhoneNumber && styles.inputTypeTextActive
+                  ]}>
+                    {t('auth.phone')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               {isPhoneNumber ? (
                 <View style={styles.phoneInputContainer}>
                   {/* <TouchableOpacity
@@ -314,6 +355,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 icon="login"
               />
 
+              {/* Forgot Password */}
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ForgotPassword')}
+                style={styles.forgotPasswordContainer}
+              >
+                <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
+              </TouchableOpacity>
 
               {/* Social Login */}
               {/* <View style={styles.socialContainer}>
@@ -351,6 +399,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             style={styles.footerContainer}
             entering={FadeInUp.duration(600).delay(1200).springify()}
           >
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Register')}
+              style={styles.registerLink}
+            >
+              <Text style={styles.registerText}>
+                {t('auth.dontHaveAccount')}{' '}
+                <Text style={styles.registerLinkText}>{t('auth.createAccountLink')}</Text>
+              </Text>
+            </TouchableOpacity>
+
+
+
             {/* Security Badge */}
             <View style={styles.securityBadge}>
               <Icon name="shield-check" size={16} color={theme.colors.success} />
@@ -666,7 +726,8 @@ const styles = StyleSheet.create({
   },
   registerLinkText: {
     color: theme.colors.primary,
-      fontFamily: theme.typography.fontFamily, 
+    fontFamily: theme.typography.fontFamily, 
+    textDecorationLine: 'underline',
   },
   helpSection: {
     alignItems: 'center',

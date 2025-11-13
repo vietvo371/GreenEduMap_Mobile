@@ -18,8 +18,8 @@ import { theme } from '../theme/colors';
 import InputCustom from '../component/InputCustom';
 import ButtonCustom from '../component/ButtonCustom';
 import LoadingOverlay from '../component/LoadingOverlay';
-import LanguageSelector from '../components/LanguageSelector';
-import CountryCodePicker from '../components/CountryCodePicker';
+import LanguageSelector from '../component/LanguageSelector';
+import CountryCodePicker from '../component/CountryCodePicker';
 import api from '../utils/Api';
 import {
   widthPercentageToDP as wp,

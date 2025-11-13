@@ -19,7 +19,6 @@ import { StackScreen } from '../navigation/types';
 import { removeUser, removeToken, getUser } from '../utils/TokenManager';
 import api from '../utils/Api';
 import { useTranslation } from '../hooks/useTranslation';
-import VipUuidBottomSheet from '../component/VipUuidBottomSheet';
 import LoadingOverlay from '../component/LoadingOverlay';
 
 type BankAccount = {

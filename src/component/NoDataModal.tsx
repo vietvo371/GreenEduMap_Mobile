@@ -41,7 +41,7 @@ const NoDataModal: React.FC<NoDataModalProps> = ({
           <View style={styles.content}>
             {/* Lottie Animation */}
             <LottieView
-              source={require('../assets/images/no_data.json')}
+              source={require('../assets/animations/no_data.json')}
               autoPlay
               loop
               style={{

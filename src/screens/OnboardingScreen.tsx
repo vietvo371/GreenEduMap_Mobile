@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import EventCard from '../component/EventCard';
+import OnboardingCard from '../component/OnboardingCard';
 import Marquee from '../component/Marquee';
 import { theme } from '../theme/colors';
 import { useTranslation } from '../hooks/useTranslation';
@@ -88,7 +88,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
           >
             <Marquee
               items={onboardingData}
-              renderItem={({ item }) => <EventCard event={item} />}
+              renderItem={({ item }) => <OnboardingCard item={item} />}
               onIndexChange={(index) => {
                 const safeIndex = Math.max(0, Math.min(index, onboardingData.length - 1));
                 setActiveIndex(safeIndex);

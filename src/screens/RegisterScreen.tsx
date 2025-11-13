@@ -21,7 +21,6 @@ import Header from '../component/Header';
 import InputCustom from '../component/InputCustom';
 import ButtonCustom from '../component/ButtonCustom';
 import LoadingOverlay from '../component/LoadingOverlay';
-import CCCDQRScanner from '../component/CCCDQRScanner';
 import api from '../utils/Api';
 import { useTranslation } from '../hooks/useTranslation';
 

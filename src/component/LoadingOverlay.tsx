@@ -45,7 +45,7 @@ const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
         <View style={styles.content}>
           {shouldUseLottie ? (
             <LottieView
-              source={require('../assets/images/coin_wallet.json')}
+              source={require('../assets/animations/coin_wallet.json')}
               autoPlay={autoPlay}
               loop={loop}
               style={{ 

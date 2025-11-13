@@ -22,7 +22,7 @@ const VerificationModal: React.FC<VerificationModalProps> = ({
   title,
   message,
   buttonText = 'Đóng',
-  animationSource = require('../assets/images/verification.json'),
+  animationSource = require('../assets/animations/verification.json'),
   animationSize = 200,
 }) => {
   if (!visible) return null;

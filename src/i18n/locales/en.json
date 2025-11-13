@@ -16,14 +16,16 @@
     "next": "Next",
     "done": "Done",
     "retry": "Retry",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "warning": "Warning",
+    "ok": "OK"
   },
   "referral": {
     "shareMessage": "Share your referral link",
     "shareTitle": "Share referral link",
     "shareDescription": "Earn rewards when your friends use MIMO through your referral link",
     "shareButton": "Share referral link",
-    "shareButtonText": "Share referral link",
+    "shareButtonText": "Share referral link"
   },
   "chat": {
     "title": "Live Support",

@@ -48,7 +48,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ navigation }) => {
       />
       <ActivityIndicator
         size="large"
-        color={theme.colors.primary}
+        color="green"
         style={styles.spinner}
       />
     </View>
