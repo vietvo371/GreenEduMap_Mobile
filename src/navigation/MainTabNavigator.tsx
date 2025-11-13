@@ -31,7 +31,7 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 // ============================================================================
 // MAIN TAB SCREENS
 // ============================================================================
-import MapScreen from '../screens/MapScreen';
+import MapScreen from '../screens/MapScreenMapbox'; // Using Mapbox GL
 import LearnScreen from '../screens/LearnScreen';
 import ActionsScreen from '../screens/ActionsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -77,6 +77,7 @@ const MainTabs = () => {
       shadowOffset: { width: 0, height: -4 },
       shadowOpacity: 0.1,
       shadowRadius: 12,
+      marginBottom: 12,
     },
     tabBarLabelStyle: {
       fontFamily: theme.typography.fontFamily,

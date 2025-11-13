@@ -50,11 +50,13 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>App uses your location for features that work in the background and when the app is open.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>App needs location access to get your current position</string>
+	<string>GreenEduMap cần truy cập vị trí để hiển thị bản đồ môi trường và dữ liệu chất lượng không khí</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>App needs photo library access to save images</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>App needs photo library access to select images</string>
+	<key>MGLMapboxAccessToken</key>
+	<string>pk.eyJ1IjoidmlldHZvMzcxIiwiYSI6ImNtZ3ZxazFmbDBndnMyanIxMzN0dHV1eGcifQ.lhk4cDYUEIozqnFfkSebaw</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

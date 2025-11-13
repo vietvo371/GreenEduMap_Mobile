@@ -40,6 +40,14 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - MapboxCommon (24.15.4):
+    - Turf (= 4.0.0)
+  - MapboxCoreMaps (11.15.4):
+    - MapboxCommon (= 24.15.4)
+  - MapboxMaps (11.15.4):
+    - MapboxCommon (= 24.15.4)
+    - MapboxCoreMaps (= 11.15.4)
+    - Turf (= 4.0.0)
   - RCT-Folly (2024.11.18.00):
     - boost
     - DoubleConversion
@@ -2717,6 +2725,38 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - rnmapbox-maps (10.2.7):
+    - MapboxMaps (~> 11.15.2)
+    - React
+    - React-Core
+    - rnmapbox-maps/DynamicLibrary (= 10.2.7)
+    - Turf
+  - rnmapbox-maps/DynamicLibrary (10.2.7):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - hermes-engine
+    - MapboxMaps (~> 11.15.2)
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React
+    - React-Core
+    - React-featureflags
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Turf
+    - Yoga
   - RNPermissions (5.4.2):
     - boost
     - DoubleConversion
@@ -3071,6 +3111,7 @@ PODS:
     - SocketRocket
     - Yoga
   - SocketRocket (0.7.1)
+  - Turf (4.0.0)
   - VisionCamera (4.7.1):
     - VisionCamera/Core (= 4.7.1)
     - VisionCamera/React (= 4.7.1)
@@ -3168,6 +3209,7 @@ DEPENDENCIES:
   - "RNCPicker (from `../node_modules/@react-native-picker/picker`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNLocalize (from `../node_modules/react-native-localize`)
+  - "rnmapbox-maps (from `../node_modules/@rnmapbox/maps`)"
   - RNPermissions (from `../node_modules/react-native-permissions`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
@@ -3181,7 +3223,11 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - lottie-ios
+    - MapboxCommon
+    - MapboxCoreMaps
+    - MapboxMaps
     - SocketRocket
+    - Turf
 
 EXTERNAL SOURCES:
   boost:
@@ -3359,6 +3405,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-gesture-handler"
   RNLocalize:
     :path: "../node_modules/react-native-localize"
+  rnmapbox-maps:
+    :path: "../node_modules/@rnmapbox/maps"
   RNPermissions:
     :path: "../node_modules/react-native-permissions"
   RNReanimated:
@@ -3387,6 +3435,9 @@ SPEC CHECKSUMS:
   hermes-engine: 4f8246b1f6d79f625e0d99472d1f3a71da4d28ca
   lottie-ios: a881093fab623c467d3bce374367755c272bdd59
   lottie-react-native: 86fa7488b1476563f41071244aa73d5b738faf19
+  MapboxCommon: 975faa94b893bb64a1d28b09d9d6d820e1030a26
+  MapboxCoreMaps: 105af9894d850290fbb466e9f9a133f5d175abf1
+  MapboxMaps: e97e59d6ba48bb6f695a4c1dc2f174cb24743cd4
   RCT-Folly: 846fda9475e61ec7bcbf8a3fe81edfcaeb090669
   RCTDeprecation: c4b9e2fd0ab200e3af72b013ed6113187c607077
   RCTRequired: e97dd5dafc1db8094e63bc5031e0371f092ae92a
@@ -3465,6 +3516,7 @@ SPEC CHECKSUMS:
   RNCPicker: 66c392786945ecee5275242c148e6a4601221d3a
   RNGestureHandler: 29bbca60c881e5243e219e3fe0016060002ed389
   RNLocalize: ccce7d4abfbd268a9c47c9089ef6a8d587e9a1e6
+  rnmapbox-maps: 45bae374417b6d5a2174da7eb047d78c3ae007b8
   RNPermissions: 56d8a958b1d8cf7f4c30a732619b7b6b6b92bfda
   RNReanimated: f39d5f29612cb37617241ea2e91bfecaabe0d1c4
   RNScreens: 40264381e0eca3f0c368c78f192f547ef40caa39
@@ -3472,9 +3524,10 @@ SPEC CHECKSUMS:
   RNVectorIcons: 791f13226ec4a3fd13062eda9e892159f0981fae
   RNWorklets: 88b4f0eb7d19cbc07d19274ee66b15200e206d38
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
+  Turf: c9eb11a65d96af58cac523460fd40fec5061b081
   VisionCamera: 9a8f98ae344fe5d148f84bb45829f9e4caab9d2f
   Yoga: 11c9686a21e2cd82a094a723649d9f4507200fb0
 
-PODFILE CHECKSUM: 53024406d99656005fa82cd0df7f6dbd7e3ecf83
+PODFILE CHECKSUM: efdebcc468189c240248850b12bfb05671fcca5f
 
 COCOAPODS: 1.16.2
