@@ -8,38 +8,26 @@ import { EkycVerifyRequest, EkycVerifyResponse } from '../types/ekyc';
 
 export interface User {
   id: string;
-  email?: string;
+  email: string;
+  full_name: string;
   phone?: string;
-  fullName?: string;
-  role: 'citizen' | 'student' | 'teacher' | 'urban_manager' | 'researcher' | 'business' | 'verifier' | 'government';
-  avatar?: string;
-  verified: boolean;
-  ekycVerified: boolean;
-  createdAt: string;
-  location?: {
-    latitude: number;
-    longitude: number;
-    city?: string;
-    country?: string;
-  };
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface SignUpData {
-  email?: string;
-  phone?: string;
+  username: string;
+  email: string;
   password: string;
-  fullName: string;
-  role: User['role'];
-  location?: {
-    latitude: number;
-    longitude: number;
-  };
+  full_name: string;
+  phone: string;
 }
 
 export interface SignInResponse {
   user: User;
-  token: string;
-  refreshToken?: string;
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
 }
 
 // ============================================================================
@@ -54,24 +42,21 @@ class AuthApiService {
   /**
    * Sign in user
    */
-  async signIn(credentials: { identifier: string; type: string }): Promise<SignInResponse> {
+  async signIn(credentials: { email: string; password: string }): Promise<SignInResponse> {
     try {
-      // TODO: Replace with real API call
       const response = await api.post('/auth/login', {
-        identifier: credentials.identifier,
-        type: credentials.type,
+        email: credentials.email,
+        password: credentials.password,
       });
 
-      const { user, token, refreshToken } = response.data;
+      const { user, access_token, refresh_token, token_type } = response.data;
 
       // Save tokens and user data
-      await this.saveToken(token);
-      if (refreshToken) {
-        await this.saveRefreshToken(refreshToken);
-      }
+      await this.saveToken(access_token);
+      await this.saveRefreshToken(refresh_token);
       await this.saveUser(user);
 
-      return { user, token, refreshToken };
+      return { user, access_token, refresh_token, token_type };
     } catch (error) {
       console.error('Sign in error:', error);
       throw error;
@@ -81,12 +66,25 @@ class AuthApiService {
   /**
    * Sign up new user
    */
-  async signUp(userData: SignUpData): Promise<void> {
+  async signUp(userData: SignUpData): Promise<SignInResponse> {
     try {
-      // TODO: Replace with real API call
-      const response = await api.post('/auth/register', userData);
+      const response = await api.post('/auth/register', {
+        username: userData.username,
+        email: userData.email,
+        password: userData.password,
+        full_name: userData.full_name,
+        phone: userData.phone,
+      });
+
+      const { user, access_token, refresh_token, token_type } = response.data;
+
+      // Save tokens and user data after registration
+      await this.saveToken(access_token);
+      await this.saveRefreshToken(refresh_token);
+      await this.saveUser(user);
 
       console.log('Sign up successful:', response.data);
+      return { user, access_token, refresh_token, token_type };
     } catch (error) {
       console.error('Sign up error:', error);
       throw error;
@@ -146,19 +144,21 @@ class AuthApiService {
   /**
    * Refresh access token
    */
-  async refreshAccessToken(): Promise<string | null> {
+  async refreshAccessToken(): Promise<{ access_token: string; refresh_token: string } | null> {
     try {
       const refreshToken = await this.getRefreshToken();
       if (!refreshToken) {
         return null;
       }
 
-      // TODO: Replace with real API call
-      const response = await api.post('/auth/refresh', { refreshToken });
-      const { token } = response.data;
+      const response = await api.post('/auth/refresh', {
+        refresh_token: refreshToken
+      });
+      const { access_token, refresh_token, token_type } = response.data;
 
-      await this.saveToken(token);
-      return token;
+      await this.saveToken(access_token);
+      await this.saveRefreshToken(refresh_token);
+      return { access_token, refresh_token };
     } catch (error) {
       console.error('Error refreshing token:', error);
       return null;
@@ -166,11 +166,26 @@ class AuthApiService {
   }
 
   /**
+   * Get current user profile
+   */
+  async getCurrentUser(): Promise<User> {
+    try {
+      const response = await api.get('/auth/me');
+      const user = response.data;
+
+      await this.saveUser(user);
+      return user;
+    } catch (error) {
+      console.error('Error getting current user:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Update user profile
    */
-  async updateProfile(updates: Partial<User>): Promise<User> {
+  async updateProfile(updates: { full_name?: string; phone?: string }): Promise<User> {
     try {
-      // TODO: Replace with real API call
       const response = await api.put('/auth/profile', updates);
       const updatedUser = response.data;
 

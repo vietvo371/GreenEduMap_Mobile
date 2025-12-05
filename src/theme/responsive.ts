@@ -15,6 +15,9 @@ export const FONT_SIZE = {
   md: wp('4%'),
   lg: wp('4.5%'),
   xl: wp('5%'),
+  '2xl': wp('6%'),
+  '3xl': wp('7.5%'),
+  '4xl': wp('9%'),
   xxl: wp('6%'),
 };
 
@@ -25,6 +28,7 @@ export const SPACING = {
   md: wp('4%'),
   lg: wp('5%'),
   xl: wp('6%'),
+  '2xl': wp('10%'),
   xxl: wp('8%'),
 };
 
@@ -35,4 +39,6 @@ export const BORDER_RADIUS = {
   md: wp('3%'),
   lg: wp('4%'),
   xl: wp('5%'),
+  '2xl': wp('8%'),
+  full: wp('50%'),
 }; 

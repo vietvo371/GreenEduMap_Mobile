@@ -1,34 +1,22 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authApi, User, SignUpData } from '../utils/authApi';
+import { User } from '../types/api/auth';
 import { EkycVerifyRequest, EkycVerifyResponse } from '../types/ekyc';
-import api from '../utils/Api';
-import { saveToken, saveUser } from '../utils/TokenManager';
+import { authService } from '../services/authService';
+
+// SignUpData interface for backward compatibility
+export interface SignUpData {
+  username: string;
+  email: string;
+  password: string;
+  full_name: string;
+  phone: string;
+}
 
 // ============================================================================
 // TYPES - GreenEduMap User Roles & Data Structures
 // ============================================================================
 
-/**
- * User roles in GreenEduMap ecosystem
- * - citizen: Public users monitoring their environmental impact
- * - student: Students learning about environmental science
- * - teacher: Educators creating/managing educational content
- * - urban_manager: City planners and urban management officials
- * - researcher: Environmental researchers and scientists
- * - business: Green businesses and organizations
- * - verifier: Environmental data verifiers
- * - government: Government officials and policy makers
- */
-type UserRole = 
-  | 'citizen' 
-  | 'student' 
-  | 'teacher' 
-  | 'urban_manager' 
-  | 'researcher' 
-  | 'business' 
-  | 'verifier' 
-  | 'government';
 
 /**
  * Environmental monitoring preferences
@@ -37,11 +25,11 @@ interface EnvironmentalPreferences {
   // Air Quality Monitoring
   airQualityAlerts: boolean;
   airQualityThreshold: 'good' | 'moderate' | 'unhealthy' | 'very_unhealthy';
-  
+
   // Weather Monitoring
   weatherAlerts: boolean;
   temperatureUnit: 'celsius' | 'fahrenheit';
-  
+
   // Data Sources
   enabledDataSources: {
     openAQ: boolean;      // Air quality data
@@ -49,7 +37,7 @@ interface EnvironmentalPreferences {
     nasaPower: boolean;   // NASA POWER solar/energy data
     openStreetMap: boolean; // Map data
   };
-  
+
   // Location Preferences
   monitoringLocations: Array<{
     id: string;
@@ -58,7 +46,7 @@ interface EnvironmentalPreferences {
     longitude: number;
     isPrimary: boolean;
   }>;
-  
+
   // Notification preferences
   notifyOnPoorAirQuality: boolean;
   notifyOnWeatherAlerts: boolean;
@@ -86,11 +74,11 @@ interface EnvironmentalImpact {
   totalCarbonSaved: number; // Total kg CO2 saved
   monthlyCarbon: number;
   dailyCarbon: number;
-  
+
   // Green Actions
   completedActions: GreenAction[];
   totalActionsCount: number;
-  
+
   // Rankings & Achievements
   communityRank: number;
   totalPoints: number;
@@ -100,7 +88,7 @@ interface EnvironmentalImpact {
     icon: string;
     earnedAt: Date;
   }>;
-  
+
   // Streaks
   currentStreak: number; // Days of consecutive green actions
   longestStreak: number;
@@ -118,7 +106,7 @@ interface EducationalProgress {
     completedAt: Date;
     score: number;
   }>;
-  
+
   // Quiz results
   quizResults: Array<{
     id: string;
@@ -126,7 +114,7 @@ interface EducationalProgress {
     score: number;
     completedAt: Date;
   }>;
-  
+
   // Learning stats
   totalLearningHours: number;
   currentLevel: number;
@@ -146,14 +134,14 @@ interface AIInsights {
     difficulty: 'easy' | 'medium' | 'hard';
     category: string;
   }>;
-  
+
   // Environmental trends for user's location
   localTrends: {
     airQualityTrend: 'improving' | 'stable' | 'worsening';
     weatherPattern: string;
     environmentalRisk: 'low' | 'medium' | 'high';
   };
-  
+
   // Community insights
   communityHighlights: Array<{
     message: string;
@@ -194,29 +182,29 @@ interface AuthContextData {
   isAuthenticated: boolean;
   user: User | null;
   loading: boolean;
-  userRole: UserRole | null;
-  
+
   // Auth Methods
-  validateLogin: (identifier: string, password: string, isPhoneNumber: boolean) => LoginValidationResult;
-  signIn: (credentials: { identifier: string; password: string; type: 'email' | 'phone' }) => Promise<LoginResult>;
-  signUp: (userData: SignUpData) => Promise<void>;
+  validateLogin: (email: string, password: string) => LoginValidationResult;
+  signIn: (credentials: { email: string; password: string }) => Promise<LoginResult>;
+  signUp: (userData: SignUpData) => Promise<LoginResult>;
   signOut: () => Promise<void>;
   verifyEkyc: (data: EkycVerifyRequest) => Promise<EkycVerifyResponse>;
-  
+  getCurrentUser: () => Promise<void>;
+
   // GreenEduMap Specific Features
   environmentalPreferences: EnvironmentalPreferences;
   updateEnvironmentalPreferences: (preferences: Partial<EnvironmentalPreferences>) => Promise<void>;
-  
+
   environmentalImpact: EnvironmentalImpact | null;
   loadEnvironmentalImpact: () => Promise<void>;
   addGreenAction: (action: Omit<GreenAction, 'id' | 'completedAt'>) => Promise<void>;
-  
+
   educationalProgress: EducationalProgress | null;
   loadEducationalProgress: () => Promise<void>;
-  
+
   aiInsights: AIInsights | null;
   refreshAIInsights: () => Promise<void>;
-  
+
   // User settings
   updateUserSettings: (settings: any) => Promise<void>;
 }
@@ -251,7 +239,7 @@ const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   // GreenEduMap specific state
   const [environmentalPreferences, setEnvironmentalPreferences] = useState<EnvironmentalPreferences>(
     DEFAULT_ENVIRONMENTAL_PREFERENCES
@@ -263,18 +251,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ============================================================================
   // INITIALIZATION
   // ============================================================================
-  
+
   useEffect(() => {
     initializeApp();
   }, []);
 
   const initializeApp = async () => {
     try {
-      await loadStoredUser();
-      await loadEnvironmentalPreferences();
-      await loadEnvironmentalImpact();
-      await loadEducationalProgress();
-      await refreshAIInsights();
+      // Try to load stored token and validate it
+      const token = await authService.getToken();
+      if (token) {
+        try {
+          // Validate token by fetching profile
+          const userProfile = await authService.getProfile();
+          setUser(userProfile);
+
+          // Load other data only if authenticated
+          await Promise.all([
+            loadEnvironmentalPreferences(),
+            loadEnvironmentalImpact(),
+            loadEducationalProgress(),
+            refreshAIInsights(),
+          ]);
+        } catch (error) {
+          console.log('Token invalid or expired:', error);
+          // Token is invalid, clear it
+          await signOut();
+        }
+      } else {
+        // No token, just finish loading
+        setUser(null);
+      }
     } catch (error) {
       console.log('Error initializing app:', error);
     } finally {
@@ -286,39 +293,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // AUTHENTICATION METHODS
   // ============================================================================
 
-  const loadStoredUser = async () => {
-    try {
-      const storedUser = await authApi.loadStoredUser();
-      setUser(storedUser);
-    } catch (error) {
-      console.log('Error loading stored user:', error);
-    }
-  };
 
   /**
    * Validate login form
    * Returns error keys that can be translated in the UI
    */
-  const validateLogin = (identifier: string, password: string, isPhoneNumber: boolean): LoginValidationResult => {
+  const validateLogin = (email: string, password: string): LoginValidationResult => {
     const errors: { identifier?: string; password?: string } = {};
 
-    // Validate identifier (email or phone)
-    if (!identifier) {
-      errors.identifier = isPhoneNumber ? 'PHONE_REQUIRED' : 'EMAIL_REQUIRED';
-    } else if (isPhoneNumber) {
-      if (!/^\d{9,10}$/.test(identifier)) {
-        errors.identifier = 'VALID_PHONE';
-      }
-    } else {
-      if (!/\S+@\S+\.\S+/.test(identifier)) {
-        errors.identifier = 'VALID_EMAIL';
-      }
+    // Validate email
+    if (!email) {
+      errors.identifier = 'EMAIL_REQUIRED';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      errors.identifier = 'VALID_EMAIL';
     }
 
     // Validate password
     if (!password) {
       errors.password = 'PASSWORD_REQUIRED';
-    } else if (password.length < 6) {
+    } else if (password.length < 8) {
       errors.password = 'PASSWORD_MIN_LENGTH';
     }
 
@@ -331,52 +324,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   /**
    * Sign in user with validation and error handling
    */
-  const signIn = async (credentials: { identifier: string; password: string; type: 'email' | 'phone' }): Promise<LoginResult> => {
+  const signIn = async (credentials: { email: string; password: string }): Promise<LoginResult> => {
     try {
-      console.log('Login attempt:', credentials.identifier);
-      console.log('Login type:', credentials.type);
+      console.log('Login attempt:', credentials.email);
 
-      // Call the API
-      const response = await api.post('/auth/login', {
-        username: credentials.identifier,
+      // Call authService login
+      const response = await authService.login({
+        email: credentials.email,
         password: credentials.password,
-        type: credentials.type,
       });
 
-      console.log('Login response:', response.data);
+      console.log('Login successful:', response.user);
 
-      // Handle API response
-      if (response.data.status === false) {
-        // If account email is not activated yet
-        if (response.data.is_active_mail === false) {
-          return {
-            success: false,
-            needsEmailVerification: true,
-            identifier: credentials.identifier,
-            error: response.data.message || 'Email chưa được xác thực. Vui lòng xác thực để tiếp tục.',
-          };
-        } else {
-          // Other errors
-          return {
-            success: false,
-            error: response.data.message || 'Login failed',
-            errors: {
-              identifier: response.data.message,
-            },
-          };
-        }
-      }
-
-      // Login successful
-      console.log('Login successful:', response.data.data);
-      
-      // Save user and token
-      await saveUser(response.data.data);
-      await saveToken(response.data.token);
-      
       // Update context state
-      setUser(response.data.data);
-      
+      setUser(response.user);
+
       // Load user's environmental data after sign in
       await Promise.all([
         loadEnvironmentalPreferences(),
@@ -417,28 +379,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signUp = async (userData: SignUpData) => {
+  const signUp = async (userData: SignUpData): Promise<LoginResult> => {
     try {
-      await authApi.signUp(userData);
+      const response = await authService.register({
+        username: userData.username,
+        email: userData.email,
+        password: userData.password,
+        full_name: userData.full_name,
+        phone: userData.phone,
+      });
+
+      // After signup, user is automatically logged in
+      setUser(response.user);
+
       // Initialize default preferences for new users
       await saveEnvironmentalPreferences(DEFAULT_ENVIRONMENTAL_PREFERENCES);
+
+      // Load user's environmental data
+      await Promise.all([
+        loadEnvironmentalPreferences(),
+        loadEnvironmentalImpact(),
+        loadEducationalProgress(),
+        refreshAIInsights(),
+      ]);
+
+      return {
+        success: true,
+      };
     } catch (error: any) {
       console.log('Sign up error:', error);
-      throw error;
+
+      let errorMessage = 'Registration failed. Please try again.';
+      const errors: { identifier?: string; password?: string } = {};
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+        errors.identifier = errorMessage;
+      } else if (error.response?.data?.errors) {
+        const apiErrors = error.response.data.errors;
+        const firstError = Object.values(apiErrors)[0];
+        errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+        errors.identifier = errorMessage;
+      } else if (error.message) {
+        errorMessage = error.message;
+        errors.identifier = errorMessage;
+      }
+
+      return {
+        success: false,
+        error: errorMessage,
+        errors,
+      };
     }
   };
 
   const signOut = async () => {
     try {
-      await authApi.signOut();
+      await authService.logout();
       setUser(null);
-      
+
       // Clear GreenEduMap data
       setEnvironmentalPreferences(DEFAULT_ENVIRONMENTAL_PREFERENCES);
       setEnvironmentalImpact(null);
       setEducationalProgress(null);
       setAIInsights(null);
-      
+
       // Clear AsyncStorage
       await AsyncStorage.multiRemove([
         '@environmental_preferences',
@@ -454,9 +459,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const verifyEkyc = async (data: EkycVerifyRequest): Promise<EkycVerifyResponse> => {
     try {
-      return await authApi.verifyEkyc(data);
+      return await authService.verifyEkyc(data);
     } catch (error: any) {
       console.log('eKYC verification error:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Get current user profile
+   */
+  const getCurrentUser = async () => {
+    try {
+      const user = await authService.getProfile();
+      setUser(user);
+    } catch (error: any) {
+      console.log('Error getting current user:', error);
       throw error;
     }
   };
@@ -489,7 +507,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updated = { ...environmentalPreferences, ...preferences };
       setEnvironmentalPreferences(updated);
       await saveEnvironmentalPreferences(updated);
-      
+
       // TODO: Sync with backend API
       // await authApi.updateEnvironmentalPreferences(updated);
     } catch (error) {
@@ -523,7 +541,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setEnvironmentalImpact(defaultImpact);
       }
-      
+
       // TODO: Fetch from backend
       // const impact = await authApi.getEnvironmentalImpact();
       // setEnvironmentalImpact(impact);
@@ -539,7 +557,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: Date.now().toString(),
         completedAt: new Date(),
       };
-      
+
       const updatedImpact = {
         ...environmentalImpact!,
         completedActions: [...(environmentalImpact?.completedActions || []), newAction],
@@ -548,13 +566,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         dailyCarbon: (environmentalImpact?.dailyCarbon || 0) + action.carbonSaved,
         totalPoints: (environmentalImpact?.totalPoints || 0) + Math.floor(action.carbonSaved * 10),
       };
-      
+
       setEnvironmentalImpact(updatedImpact);
       await AsyncStorage.setItem('@environmental_impact', JSON.stringify(updatedImpact));
-      
+
       // TODO: Sync with backend
       // await authApi.addGreenAction(newAction);
-      
+
       // Refresh AI insights after adding action
       await refreshAIInsights();
     } catch (error) {
@@ -583,7 +601,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setEducationalProgress(defaultProgress);
       }
-      
+
       // TODO: Fetch from backend
       // const progress = await authApi.getEducationalProgress();
       // setEducationalProgress(progress);
@@ -631,10 +649,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         ],
       };
-      
+
       setAIInsights(mockInsights);
       await AsyncStorage.setItem('@ai_insights', JSON.stringify(mockInsights));
-      
+
       // TODO: Real API call
       // const insights = await authApi.getAIInsights();
       // setAIInsights(insights);
@@ -658,11 +676,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // ============================================================================
-  // COMPUTED VALUES
-  // ============================================================================
-
-  const userRole = user?.role ?? null;
 
   // ============================================================================
   // CONTEXT PROVIDER
@@ -675,27 +688,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!user,
         user,
         loading,
-        userRole,
         validateLogin,
         signIn,
         signUp,
         signOut,
         verifyEkyc,
-        
+        getCurrentUser,
+
         // GreenEduMap Features
         environmentalPreferences,
         updateEnvironmentalPreferences,
-        
+
         environmentalImpact,
         loadEnvironmentalImpact,
         addGreenAction,
-        
+
         educationalProgress,
         loadEducationalProgress,
-        
+
         aiInsights,
         refreshAIInsights,
-        
+
         updateUserSettings,
       }}
     >
@@ -723,7 +736,6 @@ export function useAuth(): AuthContextData {
 // ============================================================================
 
 export type {
-  UserRole,
   EnvironmentalPreferences,
   GreenAction,
   EnvironmentalImpact,

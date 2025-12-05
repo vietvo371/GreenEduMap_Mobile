@@ -5,6 +5,7 @@ export const COLORS = {
   primary: '#03A66D', // Main green color for environmental theme
   secondary: '#0ECB81', // Light green for accents
   background: '#FFFFFF',
+  backgroundSecondary: '#F5F5F5', // Light gray background
   backgroundDark: '#0B0E11',
   
   // Text Colors
@@ -115,6 +116,13 @@ export const theme = {
       shadowOpacity: 0.12,
       shadowRadius: 16,
       elevation: 8,
+    },
+    xl: {
+      shadowColor: COLORS.black,
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.15,
+      shadowRadius: 24,
+      elevation: 12,
     },
     green: {
       shadowColor: COLORS.primary,

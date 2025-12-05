@@ -163,39 +163,46 @@ api.interceptors.response.use(
       return api(config);
     }
 
-    if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message)) {
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
       console.log('Timeout after retries:', error);
-      removeToken(); 
+      removeToken();
       ErrorModalManager.showTimeoutError(() => {
         resetTo('Login');
       });
-      return ;
+      return Promise.reject(error);
     }
 
     if (error.response?.status === 422) {
       return Promise.reject(error);
     }
 
+    // For 401/403 errors
     if (error.response?.status === 401 || error.response?.status === 403) {
-      removeToken();
-      if (!isShowingAuthAlert) {
-        isShowingAuthAlert = true;
-        
-        if (error.response?.status === 401) {
-          ErrorModalManager.showSessionExpired(() => {
-            isShowingAuthAlert = false;
-            resetTo('Login');
-          });
-        } else {
-          ErrorModalManager.showAccessDenied(() => {
-            isShowingAuthAlert = false;
-            resetTo('Login');
-          });
+      // Check if this is a login request - don't show modal for login failures
+      const isLoginRequest = config.url?.includes('/auth/login');
+
+      if (!isLoginRequest) {
+        // Only remove token and show modal for authenticated requests that fail
+        removeToken();
+        if (!isShowingAuthAlert) {
+          isShowingAuthAlert = true;
+
+          if (error.response?.status === 401) {
+            ErrorModalManager.showSessionExpired(() => {
+              isShowingAuthAlert = false;
+              resetTo('Login');
+            });
+          } else {
+            ErrorModalManager.showAccessDenied(() => {
+              isShowingAuthAlert = false;
+              resetTo('Login');
+            });
+          }
         }
       }
-      
-      // return Promise.reject(error);
-      return;
+
+      // Always reject the error so the caller can handle it
+      return Promise.reject(error);
     }
 
     console.log('API error after retries:', {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,93 +9,58 @@ import {
   Platform,
   ScrollView,
   SafeAreaView,
-  Dimensions,
 } from 'react-native';
 import { AlertService } from '../services/AlertService';
-import LinearGradient from 'react-native-linear-gradient';
 import Animated, { FadeInDown, FadeInUp, SlideInDown } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { theme } from '../theme/colors';
+import {
+  theme,
+  wp,
+  hp,
+  SPACING,
+  FONT_SIZE,
+  BORDER_RADIUS,
+  ICON_SIZE,
+} from '../theme';
 import { useAuth } from '../contexts/AuthContext';
 import InputCustom from '../component/InputCustom';
 import ButtonCustom from '../component/ButtonCustom';
 import LoadingOverlay from '../component/LoadingOverlay';
 import LanguageSelector from '../component/LanguageSelector';
-import CountryCodePicker from '../component/CountryCodePicker';
-import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import { useTranslation } from '../hooks/useTranslation';
 
 interface LoginScreenProps {
   navigation: any;
 }
 
-const { width, height } = Dimensions.get('window');
-
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const { validateLogin, signIn } = useAuth();
-  const { t, getCurrentLanguage } = useTranslation();
-  const [identifier, setIdentifier] = useState('');
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ identifier?: string, password?: string }>({});
-  const [isPhoneNumber, setIsPhoneNumber] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string, password?: string }>({});
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState({
-    code: 'VN',
-    name: 'Vietnam',
-    dialCode: '+84',
-    flag: '🇻🇳',
-  });
 
   const validateForm = () => {
-    const validation = validateLogin(identifier, password, isPhoneNumber);
-    
-    // Map error keys to translated messages
-    const translatedErrors: { identifier?: string; password?: string } = {};
-    if (validation.errors.identifier) {
-      const errorKey = validation.errors.identifier;
-      switch (errorKey) {
-        case 'PHONE_REQUIRED':
-          translatedErrors.identifier = t('auth.phoneRequired');
-          break;
-        case 'EMAIL_REQUIRED':
-          translatedErrors.identifier = t('auth.emailRequired');
-          break;
-        case 'VALID_PHONE':
-          translatedErrors.identifier = t('auth.validPhone');
-          break;
-        case 'VALID_EMAIL':
-          translatedErrors.identifier = t('auth.validEmail');
-          break;
-        default:
-          translatedErrors.identifier = errorKey;
-      }
-    }
-    if (validation.errors.password) {
-      const errorKey = validation.errors.password;
-      switch (errorKey) {
-        case 'PASSWORD_REQUIRED':
-          translatedErrors.password = t('auth.passwordRequired');
-          break;
-        case 'PASSWORD_MIN_LENGTH':
-          translatedErrors.password = t('auth.passwordMinLength');
-          break;
-        default:
-          translatedErrors.password = errorKey;
-      }
-    }
-    
-    setErrors(translatedErrors);
-    return validation.isValid;
-  };
+    const newErrors: { email?: string; password?: string } = {};
 
-  const handleInputTypeChange = (isPhone: boolean) => {
-    setIsPhoneNumber(isPhone);
-    setIdentifier('');
-    setErrors({});
+    // Validate email
+    if (!email.trim()) {
+      newErrors.email = 'Vui lòng nhập email';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Email không hợp lệ';
+    }
+
+    // Validate password (API requires minimum 8 characters)
+    if (!password) {
+      newErrors.password = 'Vui lòng nhập mật khẩu';
+    } else if (password.length < 8) {
+      newErrors.password = 'Mật khẩu phải có ít nhất 8 ký tự';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleLogin = async () => {
@@ -105,53 +70,41 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
     setLoading(true);
     try {
-      // const result = await signIn({
-      //   identifier,
-      //   password,
-      //   type: isPhoneNumber ? 'phone' : 'email',
-      // });
-      navigation.navigate('MainTabs');
+      // Call signIn from AuthContext with email and password
+      const result = await signIn({
+        email: email,
+        password: password,
+      });
 
-      // if (result.success) {
-      //   // Login successful - navigate to main tabs
-      //   navigation.navigate('MainTabs');
-      // } else if (result.needsEmailVerification) {
-      //   // Email not verified - show alert and navigate to OTP verification
-      //   AlertService.warning(
-      //     t('auth.verifyEmailRequired') || 'Email chưa được xác thực',
-      //     result.error || t('auth.verifyEmailToContinue') || 'Email của bạn chưa được xác thực. Vui lòng xác thực để tiếp tục.',
-      //     [
-      //       {
-      //         text: t('common.confirm'),
-      //         onPress: () => navigation.navigate('OTPVerification', {
-      //           identifier: result.identifier || identifier,
-      //           type: 'email',
-      //           flow: 'register',
-      //         }),
-      //       },
-      //       {
-      //         text: t('common.cancel'),
-      //         style: 'cancel',
-      //       },
-      //     ]
-      //   );
-      // } else {
-      //   if (result.errors) {
-      //     setErrors(result.errors);
-      //   } else if (result.error) {
-      //     AlertService.error(t('auth.loginFailed'), result.error);
-      //   }
-      // }
+      if (result.success) {
+        console.log('Login successful:', result);
+        // Login successful - navigate to main tabs
+        navigation.navigate('MainTabs');
+      } else {
+        // Handle errors
+        if (result.errors) {
+          console.log('Login errors:', result.errors);
+          setErrors(result.errors);
+        } else if (result.error) {
+          AlertService.error(
+            'Đăng nhập thất bại',
+            result.error
+          );
+        }
+      }
     } catch (error: any) {
       console.log('Login error:', error);
-      AlertService.error(t('auth.loginFailed'), error.message || 'Login failed. Please try again.');
+      AlertService.error(
+        'Đăng nhập thất bại',
+        error.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const handleSocialLogin = (provider: string) => {
-    AlertService.info('Coming Soon', `${provider} login will be available soon`);
+    AlertService.info('Sắp ra mắt', `Đăng nhập ${provider} sẽ sớm có sẵn`);
   };
 
   return (
@@ -170,19 +123,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             onPress={() => setShowLanguageSelector(true)}
           >
             <Image
-              source={getCurrentLanguage() === 'vi'
-                ? require('../assets/images/logo_vietnam.jpg')
-                : require('../assets/images/logo_eng.png')
-              }
+              source={require('../assets/images/logo_vietnam.jpg')}
               style={styles.languageFlag}
             />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.headerIconButton}
-            onPress={() => navigation.navigate('Help')}
-          >
-            <Icon name="headset" size={24} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -190,17 +133,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           visible={showLanguageSelector}
           onClose={() => setShowLanguageSelector(false)}
           onSelect={(code: string) => {
-            // Handle language change
             console.log('Selected language:', code);
           }}
-          currentLanguage={getCurrentLanguage()}
-        />
-
-        <CountryCodePicker
-          visible={showCountryPicker}
-          onClose={() => setShowCountryPicker(false)}
-          onSelect={(country: any) => setSelectedCountry(country)}
-          selectedCountry={selectedCountry}
+          currentLanguage="vi"
         />
       </View>
 
@@ -222,7 +157,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               style={styles.welcomeText}
               entering={FadeInDown.duration(800).delay(200).springify()}
             >
-              {t('auth.welcomeBack')}
+              Chào mừng trở lại
             </Animated.Text>
 
             <Animated.Text
@@ -231,6 +166,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             >
               GreenEduMap
             </Animated.Text>
+
+            <Animated.Text
+              style={styles.subtitle}
+              entering={FadeInDown.duration(800).delay(600).springify()}
+            >
+              Đăng nhập để bắt đầu hành trình xanh
+            </Animated.Text>
           </Animated.View>
 
           {/* Form Section */}
@@ -238,99 +180,29 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             style={styles.formContainer}
             entering={SlideInDown.duration(800).delay(800).springify()}
           >
-            <View style={styles.formHeader}>
-              <Text style={styles.formTitle}>{t('auth.signIn')}</Text>
+             <View style={styles.formHeader}>
+              <Text style={styles.formTitle}>Đăng nhập</Text>
               <Text style={styles.formSubtitle}>
-                {t('auth.signInToAccount') || 'Sign in to start your environmental journey'}
+                Đăng nhập để báo cáo và theo dõi sự cố đô thị
               </Text>
             </View>
 
-            <View style={styles.form}>
-              {/* Input Type Indicator */}
-              <View style={styles.inputTypeIndicator}>
-                <TouchableOpacity
-                  style={[
-                    styles.inputTypeTab,
-                    !isPhoneNumber && styles.inputTypeTabActive
-                  ]}
-                  onPress={() => handleInputTypeChange(false)}
-                >
-                  <Icon
-                    name="email-outline"
-                    size={16}
-                    color={!isPhoneNumber ? theme.colors.success : theme.colors.textLight}
-                  />
-                  <Text style={[
-                    styles.inputTypeText,
-                    !isPhoneNumber && styles.inputTypeTextActive
-                  ]}>
-                    {t('auth.email')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.inputTypeTab,
-                    isPhoneNumber && styles.inputTypeTabActive
-                  ]}
-                  onPress={() => handleInputTypeChange(true)}
-                >
-                  <Icon
-                    name="phone-outline"
-                    size={16}
-                    color={isPhoneNumber ? theme.colors.success : theme.colors.textLight}
-                  />
-                  <Text style={[
-                    styles.inputTypeText,
-                    isPhoneNumber && styles.inputTypeTextActive
-                  ]}>
-                    {t('auth.phone')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {isPhoneNumber ? (
-                <View style={styles.phoneInputContainer}>
-                  {/* <TouchableOpacity
-                    style={styles.countryPicker}
-                    onPress={() => setShowCountryPicker(true)}
-                  >
-                    <Text style={styles.countryFlag}>{selectedCountry.flag}</Text>
-                    <Text style={styles.countryCode}>{selectedCountry.dialCode}</Text>
-                    <Icon name="chevron-down" size={20} color="#666" />
-                  </TouchableOpacity> */}
-                  <View style={styles.phoneInputWrapper}>
-                    <InputCustom
-                      label={t('auth.phoneNumber')}
-                      placeholder={t('auth.enterPhoneNumber')}
-                      value={identifier}
-                      onChangeText={setIdentifier}
-                      keyboardType="phone-pad"
-                      autoCapitalize="none"
-                      error={errors.identifier}
-                      required
-                      leftIcon="phone-outline"
-                      containerStyle={styles.phoneInput}
-                    />
-                  </View>
-                </View>
-              ) : (
+              <View style={styles.form}>
                 <InputCustom
-                  label={t('auth.emailAddress')}
-                  placeholder={t('auth.enterEmail')}
-                  value={identifier}
-                  onChangeText={setIdentifier}
+                  label="Email"
+                  placeholder="Nhập địa chỉ email"
+                  value={email}
+                  onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  error={errors.identifier}
+                  error={errors.email}
                   required
                   leftIcon="email-outline"
                   containerStyle={styles.input}
                 />
-              )}
-
               <InputCustom
-                label={t('auth.password')}
-                placeholder={t('auth.enterPassword')}
+                label="Mật khẩu"
+                placeholder="Nhập mật khẩu"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -342,20 +214,38 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 containerStyle={styles.input}
               />
 
+              {/* Remember Me & Forgot Password Row */}
+              <View style={styles.optionsRow}>
+                <TouchableOpacity
+                  style={styles.rememberMeContainer}
+                  onPress={() => setRememberMe(!rememberMe)}
+                  activeOpacity={0.7}
+                >
+                  <Icon
+                    name={rememberMe ? "checkbox-marked" : "checkbox-blank-outline"}
+                    size={ICON_SIZE.md}
+                    color={rememberMe ? theme.colors.success : theme.colors.textLight}
+                  />
+                  <Text style={styles.rememberMeText}>
+                    Nhớ mật khẩu
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('ForgotPassword')}
+                >
+                  <Text style={styles.forgotPasswordText}>
+                    Quên mật khẩu?
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               <ButtonCustom
-                title={t('auth.signIn')}
+                title="Đăng nhập"
                 onPress={handleLogin}
                 style={styles.loginButton}
                 icon="login"
               />
-
-              {/* Forgot Password */}
-              <TouchableOpacity
-                onPress={() => navigation.navigate('ForgotPassword')}
-                style={styles.forgotPasswordContainer}
-              >
-                <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
-              </TouchableOpacity>
 
               {/* Social Login */}
               {/* <View style={styles.socialContainer}>
@@ -398,25 +288,28 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               style={styles.registerLink}
             >
               <Text style={styles.registerText}>
-                {t('auth.dontHaveAccount')}{' '}
-                <Text style={styles.registerLinkText}>{t('auth.createAccountLink')}</Text>
+                Chưa có tài khoản?{' '}
+                <Text style={styles.registerLinkText}>
+                  Đăng ký ngay
+                </Text>
               </Text>
             </TouchableOpacity>
 
-
-
             {/* Security Badge */}
             <View style={styles.securityBadge}>
-              <Icon name="shield-check" size={16} color={theme.colors.success} />
+              <Icon name="shield-check" size={ICON_SIZE.xs} color={theme.colors.success} />
               <Text style={styles.securityText}>
-                {t('auth.dataProtected')}
+                Dữ liệu được bảo mật và mã hóa
               </Text>
             </View>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <LoadingOverlay visible={loading} message={t('auth.signingIn')} />
+      <LoadingOverlay
+        visible={loading}
+        message="Đang đăng nhập..."
+      />
     </SafeAreaView>
   );
 };
@@ -431,22 +324,22 @@ const styles = StyleSheet.create({
   },
   headerIcons: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 70 : 30,
-    right: 20,
+    top: Platform.OS === 'ios' ? hp('9%') : hp('4%'),
+    right: SPACING.lg,
     flexDirection: 'column',
-    gap: theme.spacing.md,
+    gap: SPACING.md,
     zIndex: 1,
   },
   headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: wp('10%'),
+    height: wp('10%'),
+    borderRadius: wp('5%'),
     backgroundColor: theme.colors.white,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: theme.colors.primary,
+        shadowColor: theme.colors.success,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
@@ -457,91 +350,70 @@ const styles = StyleSheet.create({
     }),
   },
   languageFlag: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: ICON_SIZE.md,
+    height: ICON_SIZE.md,
+    borderRadius: ICON_SIZE.md / 2,
   },
   decorativeCircle1: {
     position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    top: hp('-6%'),
+    right: wp('-12%'),
+    width: wp('37.5%'),
+    height: wp('37.5%'),
+    borderRadius: wp('18.75%'),
     backgroundColor: theme.colors.success + '15',
   },
   decorativeCircle2: {
     position: 'absolute',
-    bottom: -30,
-    left: -30,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: theme.colors.info + '15',
+    bottom: hp('-4%'),
+    left: wp('-7.5%'),
+    width: wp('25%'),
+    height: wp('25%'),
+    borderRadius: wp('12.5%'),
+    backgroundColor: theme.colors.environmental + '15',
   },
   keyboardAvoidingView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: SPACING.lg,
   },
 
   // Header Styles
   headerContainer: {
     alignItems: 'center',
-    paddingTop: height * 0.08,
-    paddingBottom: theme.spacing.xl,
-  },
-  logoContainer: {
-    marginBottom: theme.spacing.lg,
-  },
-  logoBackground: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: theme.colors.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 16,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
+    paddingTop: hp('8%'),
+    paddingBottom: SPACING.xl,
   },
   welcomeText: {
-    fontSize: theme.typography.fontSize.md,
+    fontSize: FONT_SIZE.md,
     color: theme.colors.textLight,
     fontFamily: theme.typography.fontFamily,
-    marginBottom: theme.spacing.xs,
+    marginBottom: SPACING.xs,
   },
   title: {
     fontFamily: theme.typography.fontFamily,
-    fontSize: 32,
+    fontSize: FONT_SIZE['4xl'],
     color: theme.colors.success,
-    marginBottom: theme.spacing.sm,
+    marginBottom: SPACING.sm,
     fontWeight: 'bold',
   },
   subtitle: {
     fontFamily: theme.typography.fontFamily,
-    fontSize: theme.typography.fontSize.md,
+    fontSize: FONT_SIZE.md,
     color: theme.colors.textLight,
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: theme.spacing.lg,
+    lineHeight: FONT_SIZE.md * 1.5,
+    paddingHorizontal: SPACING.lg,
   },
 
   // Form Styles
   formContainer: {
     backgroundColor: theme.colors.white,
-    borderRadius: 32,
-    padding: theme.spacing.xl,
-    marginBottom: theme.spacing.xl,
+    borderRadius: BORDER_RADIUS['2xl'],
+    padding: SPACING.xl,
+    marginBottom: SPACING.xl,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -556,16 +428,17 @@ const styles = StyleSheet.create({
   },
   formHeader: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    marginBottom: SPACING.xl,
   },
   formTitle: {
     fontFamily: theme.typography.fontFamily,
-    fontSize: theme.typography.fontSize.xl,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    fontSize: FONT_SIZE['2xl'],
+    fontWeight: 'bold',
+    color: theme.colors.success,
+    marginBottom: SPACING.xs,
   },
   formSubtitle: {
-    fontSize: theme.typography.fontSize.sm,
+    fontSize: FONT_SIZE.sm,
     color: theme.colors.textLight,
     textAlign: 'center',
   },
@@ -573,184 +446,72 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 
-  // Input Type Indicator
-  inputTypeIndicator: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.background,
-    borderRadius: 16,
-    padding: 4,
-    marginBottom: theme.spacing.lg,
-  },
-  inputTypeTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.sm,
-    borderRadius: 12,
-    gap: 6,
-  },
-  inputTypeTabActive: {
-    backgroundColor: theme.colors.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  inputTypeText: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textLight,
-    fontFamily: theme.typography.fontFamily,
-  },
-  inputTypeTextActive: {
-    color: theme.colors.success,
-  },
-
   input: {
-    marginBottom: theme.spacing.lg,
-  },
-  phoneInputContainer: {
-    marginBottom: theme.spacing.lg,
-  },
-  countryPicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  countryFlag: {
-    fontSize: 24,
-    marginRight: 8,
-  },
-  countryCode: {
-    fontSize: wp('4%'),
-    color: theme.colors.text,
-    marginRight: 8,
-  },
-  phoneInputWrapper: {
-    flex: 1,
-  },
-  phoneInput: {
-    flex: 1,
+    marginBottom: SPACING.lg,
   },
   loginButton: {
-    marginBottom: theme.spacing.md,
-    height: 56,
+    marginBottom: SPACING.md,
+    height: hp('7%'),
   },
 
-  // Forgot Password Styles
-  forgotPasswordContainer: {
-    alignItems: 'flex-end',
-    marginBottom: theme.spacing.lg,
+  // Options Row (Remember Me & Forgot Password)
+  optionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  rememberMeText: {
+    fontSize: FONT_SIZE.sm,
+    color: theme.colors.text,
+    fontFamily: theme.typography.fontFamily,
   },
   forgotPasswordText: {
-    fontSize: theme.typography.fontSize.sm,
+    fontSize: FONT_SIZE.sm,
     color: theme.colors.success,
     fontFamily: theme.typography.fontFamily,
-    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
-
-  // Divider Styles
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: theme.spacing.lg,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: theme.colors.border,
-  },
-  dividerText: {
-    fontFamily: theme.typography.fontFamily,
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textLight,
-    marginHorizontal: theme.spacing.lg,
-  },
-
-  // Social Login Styles
-  socialContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: theme.spacing.lg,
-    marginBottom: theme.spacing.lg,
-  },
-  socialButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.white,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  googleButton: {},
-  facebookButton: {},
-  appleButton: {},
 
   // Footer Styles
   footerContainer: {
     alignItems: 'center',
-    paddingBottom: theme.spacing.xl,
-    gap: theme.spacing.lg,
+    paddingBottom: SPACING.xl,
+    gap: SPACING.lg,
   },
   registerLink: {
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: SPACING.sm,
   },
   registerText: {
     fontFamily: theme.typography.fontFamily,
-    fontSize: theme.typography.fontSize.md,
+    fontSize: FONT_SIZE.md,
     color: theme.colors.text,
     textAlign: 'center',
   },
   registerLinkText: {
     color: theme.colors.success,
     fontFamily: theme.typography.fontFamily,
+    fontWeight: '600',
     textDecorationLine: 'underline',
-  },
-  helpSection: {
-    alignItems: 'center',
-  },
-  helpButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: theme.spacing.sm,
-  },
-  helpText: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textLight,
-    fontFamily: theme.typography.fontFamily,
   },
   securityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.sm,
     backgroundColor: theme.colors.success + '10',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: 20,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: wp('10%'),
     borderWidth: 1,
     borderColor: theme.colors.success + '20',
   },
   securityText: {
-    fontSize: theme.typography.fontSize.xs,
+    fontSize: FONT_SIZE.xs,
     color: theme.colors.text,
     fontFamily: theme.typography.fontFamily,
     textAlign: 'center',

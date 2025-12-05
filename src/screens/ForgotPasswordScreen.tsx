@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,62 +8,43 @@ import {
   Platform,
   ScrollView,
   SafeAreaView,
-  Dimensions,
-  Alert,
   Image,
 } from 'react-native';
+import { AlertService } from '../services/AlertService';
 import Animated, { FadeInDown, FadeInUp, SlideInDown } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { theme } from '../theme/colors';
+import {
+  theme,
+  wp,
+  hp,
+  SPACING,
+  FONT_SIZE,
+  BORDER_RADIUS,
+  ICON_SIZE,
+} from '../theme';
 import InputCustom from '../component/InputCustom';
 import ButtonCustom from '../component/ButtonCustom';
 import LoadingOverlay from '../component/LoadingOverlay';
 import LanguageSelector from '../component/LanguageSelector';
-import CountryCodePicker from '../component/CountryCodePicker';
-import api from '../utils/Api';
-import {
-  widthPercentageToDP as wp,
-  heightPercentageToDP as hp,
-} from 'react-native-responsive-screen';
-import { useTranslation } from '../hooks/useTranslation';
+import { authService } from '../services/authService';
 
 interface ForgotPasswordScreenProps {
   navigation: any;
 }
 
-const { width, height } = Dimensions.get('window');
-
 const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
-  const { t, getCurrentLanguage } = useTranslation();
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ identifier?: string; otp?: string }>({});
-  const [isPhoneNumber, setIsPhoneNumber] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string }>({});
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState({
-    code: 'VN',
-    name: 'Vietnam',
-    dialCode: '+84',
-    flag: '🇻🇳',
-  });
-
-  // OTP states (not used in this screen anymore)
-  const [verifying, setVerifying] = useState(false);
 
   const validateForm = () => {
-    const newErrors: { identifier?: string } = {};
+    const newErrors: { email?: string } = {};
 
-    if (!identifier) {
-      newErrors.identifier = isPhoneNumber ? t('auth.phoneRequired') : t('auth.emailRequired');
-    } else if (isPhoneNumber) {
-      if (!/^\d{9,10}$/.test(identifier)) {
-        newErrors.identifier = t('auth.validPhone');
-      }
-    } else {
-      if (!/\S+@\S+\.\S+/.test(identifier)) {
-        newErrors.identifier = t('auth.validEmail');
-      }
+    if (!email.trim()) {
+      newErrors.email = 'Vui lòng nhập email';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Email không hợp lệ';
     }
 
     setErrors(newErrors);
@@ -71,57 +52,56 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
   };
 
 
-  const handleInputTypeChange = (isPhone: boolean) => {
-    setIsPhoneNumber(isPhone);
-    setIdentifier('');
-    setErrors({});
-  };
-
-
-  const handleSendOTPForgot = async () => {
+  const handleSendResetLink = async () => {
     if (!validateForm()) {
       return;
     }
-    console.log('Send OTP for forgot password:', isPhoneNumber);
-    console.log('Send OTP for forgot password:', identifier);
+
     setLoading(true);
     try {
-      const response = await api.post('/auth/forgot-password', {
-        username: identifier,
-        type: isPhoneNumber ? 'phone' : 'email'
-      });
+      // Use authService to request password reset
+      await authService.requestPasswordReset(email);
 
-      console.log('Send OTP response:', response.data);
+      // If successful, show success message and navigate to UpdatePassword
+      AlertService.success(
+        'Đã gửi liên kết',
+        'Vui lòng kiểm tra email để đặt lại mật khẩu',
+        [
+          {
+            text: 'Xác nhận',
+            onPress: () => {
+              navigation.navigate('UpdatePassword', {
+                email: email,
+              });
+            }
+          }
+        ]
+      );
 
-      if (response.data.status) {
-        navigation.navigate('OTPVerification', {
-          identifier: identifier,
-          type: isPhoneNumber ? 'phone' : 'email',
-          flow: 'forgot',
-        })
-      } else {
-        setErrors({
-          identifier: response.data.message
-        });
-      }
+      setErrors({});
     } catch (error: any) {
+      console.log('Forgot password error:', error);
+
       if (error.response?.data?.errors) {
         const newErrors: Record<string, string> = {};
         Object.keys(error.response.data.errors).forEach(field => {
-          newErrors[field] = error.response.data.errors[field][0];
+          const mappedField = field === 'email' ? 'email' : field;
+          newErrors[mappedField] = Array.isArray(error.response.data.errors[field])
+            ? error.response.data.errors[field][0]
+            : error.response.data.errors[field];
         });
         setErrors(newErrors);
       } else if (error.response?.data?.message) {
         setErrors({
-          identifier: error.response.data.message
+          email: error.response.data.message
         });
       } else if (error.message) {
         setErrors({
-          identifier: error.message
+          email: error.message
         });
       } else {
         setErrors({
-          identifier: 'Failed to send OTP. Please try again.'
+          email: 'Không thể gửi liên kết. Vui lòng thử lại.'
         });
       }
     } finally {
@@ -145,20 +125,11 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
             onPress={() => setShowLanguageSelector(true)}
           >
             <Image 
-              source={getCurrentLanguage() === 'vi' 
-                ? require('../assets/images/logo_vietnam.jpg')
-                : require('../assets/images/logo_eng.png')
-              }
+              source={require('../assets/images/logo_vietnam.jpg')}
               style={styles.languageFlag}
             />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.headerIconButton}
-            onPress={() => navigation.navigate('Help')}
-          >
-            <Icon name="headset" size={24} color={theme.colors.text} />
-          </TouchableOpacity>
         </View>
 
         <LanguageSelector
@@ -167,14 +138,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
           onSelect={(code) => {
             console.log('Selected language:', code);
           }}
-          currentLanguage={getCurrentLanguage()}
-        />
-
-        <CountryCodePicker
-          visible={showCountryPicker}
-          onClose={() => setShowCountryPicker(false)}
-          onSelect={(country) => setSelectedCountry(country)}
-          selectedCountry={selectedCountry}
+          currentLanguage="vi"
         />
       </View>
 
@@ -206,14 +170,14 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
             entering={FadeInDown.duration(600).delay(200).springify()}
           >
             <View style={styles.iconContainer}>
-              <Icon name="lock-reset" size={48} color={theme.colors.success} />
+              <Icon name="lock-reset" size={ICON_SIZE.xxxl} color={theme.colors.success} />
             </View>
 
             <Text style={styles.title}>
-              {t('auth.forgotPasswordTitle')}
+              Quên mật khẩu
             </Text>
             <Text style={styles.subtitle}>
-              {t('auth.forgotPasswordSubtitle')}
+              Nhập email để nhận liên kết đặt lại mật khẩu
             </Text>
           </Animated.View>
 
@@ -223,94 +187,33 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
             entering={SlideInDown.duration(800).delay(400).springify()}
           >
             <View style={styles.form}>
-              {/* Input Type Indicator */}
-              <View style={styles.inputTypeIndicator}>
-                <TouchableOpacity
-                  style={[
-                    styles.inputTypeTab,
-                    !isPhoneNumber && styles.inputTypeTabActive
-                  ]}
-                  onPress={() => handleInputTypeChange(false)}
-                >
-                  <Icon
-                    name="email-outline"
-                    size={16}
-                    color={!isPhoneNumber ? theme.colors.success : theme.colors.textLight}
-                  />
-                  <Text style={[
-                    styles.inputTypeText,
-                    !isPhoneNumber && styles.inputTypeTextActive
-                  ]}>
-                    {t('auth.email')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.inputTypeTab,
-                    isPhoneNumber && styles.inputTypeTabActive
-                  ]}
-                  onPress={() => handleInputTypeChange(true)}
-                >
-                  <Icon
-                    name="phone-outline"
-                    size={16}
-                    color={isPhoneNumber ? theme.colors.success : theme.colors.textLight}
-                  />
-                  <Text style={[
-                    styles.inputTypeText,
-                    isPhoneNumber && styles.inputTypeTextActive
-                  ]}>
-                    {t('auth.phone')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {isPhoneNumber ? (
-                <View style={styles.phoneInputContainer}>
-                  <View style={styles.phoneInputWrapper}>
-                    <InputCustom
-                      label={t('auth.phoneNumber')}
-                      placeholder={t('auth.enterPhoneNumber')}
-                      value={identifier}
-                      onChangeText={setIdentifier}
-                      keyboardType="phone-pad"
-                      autoCapitalize="none"
-                      error={errors.identifier}
-                      required
-                      leftIcon="phone-outline"
-                      containerStyle={styles.phoneInput}
-                    />
-                  </View>
-                </View>
-              ) : (
-                <InputCustom
-                  label={t('auth.emailAddress')}
-                  placeholder={t('auth.enterEmail')}
-                  value={identifier}
-                  onChangeText={setIdentifier}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  error={errors.identifier}
-                  required
-                  leftIcon="email-outline"
-                  containerStyle={styles.input}
-                />
-              )}
+              <InputCustom
+                label="Email"
+                placeholder="Nhập địa chỉ email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                error={errors.email}
+                required
+                leftIcon="email-outline"
+                containerStyle={styles.input}
+              />
 
               <ButtonCustom
-                title={t('auth.sendVerificationCode')}
-                onPress={handleSendOTPForgot}
+                title="Gửi liên kết đặt lại"
+                onPress={handleSendResetLink}
                 style={styles.resetButton}
                 icon="send"
               />
               {/* Back to Login */}
               <TouchableOpacity
                 onPress={() => navigation.goBack()}
-                style={styles.backToLoginContainer}
+                style={styles.backToLoginLink}
               >
+                <Icon name="chevron-left" size={ICON_SIZE.sm} color={theme.colors.success} />
                 <Text style={styles.backToLoginText}>
-                  {t('auth.rememberPassword')}{' '}
-                  <Text style={styles.backToLoginLinkText}>{t('auth.signInLink')}</Text>
+                  Quay lại đăng nhập
                 </Text>
               </TouchableOpacity>
             </View>
@@ -323,9 +226,9 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
           >
             {/* Security Badge */}
             <View style={styles.securityBadge}>
-              <Icon name="shield-check" size={16} color={theme.colors.success} />
+              <Icon name="shield-check" size={ICON_SIZE.xs} color={theme.colors.success} />
               <Text style={styles.securityText}>
-                {t('auth.dataProtected')}
+                Dữ liệu được bảo mật và mã hóa
               </Text>
             </View>
           </Animated.View>
@@ -347,22 +250,22 @@ const styles = StyleSheet.create({
   },
   headerIcons: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 70 : 30,
-    right: 20,
+    top: Platform.OS === 'ios' ? hp('9%') : hp('4%'),
+    right: SPACING.lg,
     flexDirection: 'column',
-    gap: theme.spacing.md,
+    gap: SPACING.md,
     zIndex: 1,
   },
   headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: wp('10%'),
+    height: wp('10%'),
+    borderRadius: wp('5%'),
     backgroundColor: theme.colors.white,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: theme.colors.primary,
+        shadowColor: theme.colors.success,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
@@ -373,45 +276,45 @@ const styles = StyleSheet.create({
     }),
   },
   languageFlag: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: ICON_SIZE.md,
+    height: ICON_SIZE.md,
+    borderRadius: ICON_SIZE.md / 2,
   },
   decorativeCircle1: {
     position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    top: hp('-6%'),
+    right: wp('-12%'),
+    width: wp('37.5%'),
+    height: wp('37.5%'),
+    borderRadius: wp('18.75%'),
     backgroundColor: theme.colors.success + '15',
   },
   decorativeCircle2: {
     position: 'absolute',
-    bottom: -30,
-    left: -30,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: theme.colors.info + '15',
+    bottom: hp('-4%'),
+    left: wp('-7.5%'),
+    width: wp('25%'),
+    height: wp('25%'),
+    borderRadius: wp('12.5%'),
+    backgroundColor: theme.colors.environmental + '15',
   },
   keyboardAvoidingView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: SPACING.lg,
   },
 
   // Back Button
   backButtonContainer: {
-    paddingTop: height * 0.02,
-    paddingBottom: theme.spacing.md,
+    paddingTop: hp('2%'),
+    paddingBottom: SPACING.md,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: wp('10%'),
+    height: wp('10%'),
+    borderRadius: wp('5%'),
     backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
@@ -420,39 +323,40 @@ const styles = StyleSheet.create({
   // Header Styles
   headerContainer: {
     alignItems: 'center',
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: SPACING.xl,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: wp('20%'),
+    height: wp('20%'),
+    borderRadius: wp('10%'),
     backgroundColor: theme.colors.success + '15',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: SPACING.lg,
   },
   title: {
     fontFamily: theme.typography.fontFamily,
-    fontSize: 28,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.sm,
+    fontSize: FONT_SIZE['3xl'],
+    color: theme.colors.success,
+    fontWeight: 'bold',
+    marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   subtitle: {
     fontFamily: theme.typography.fontFamily,
-    fontSize: theme.typography.fontSize.md,
+    fontSize: FONT_SIZE.md,
     color: theme.colors.textLight,
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: theme.spacing.lg,
+    lineHeight: FONT_SIZE.md * 1.5,
+    paddingHorizontal: SPACING.lg,
   },
 
   // Form Styles
   formContainer: {
     backgroundColor: theme.colors.white,
-    borderRadius: 32,
-    padding: theme.spacing.xl,
-    marginBottom: theme.spacing.xl,
+    borderRadius: BORDER_RADIUS['2xl'],
+    padding: SPACING.xl,
+    marginBottom: SPACING.xl,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -469,91 +373,50 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 
-  // Input Type Indicator
-  inputTypeIndicator: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.background,
-    borderRadius: 16,
-    padding: 4,
-    marginBottom: theme.spacing.lg,
-  },
-  inputTypeTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.sm,
-    borderRadius: 12,
-    gap: 6,
-  },
-  inputTypeTabActive: {
-    backgroundColor: theme.colors.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  inputTypeText: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.textLight,
-    fontFamily: theme.typography.fontFamily,
-  },
-  inputTypeTextActive: {
-    color: theme.colors.success,
-  },
-
   input: {
-    marginBottom: theme.spacing.lg,
-  },
-  phoneInputContainer: {
-    marginBottom: theme.spacing.lg,
-  },
-  phoneInputWrapper: {
-    flex: 1,
-  },
-  phoneInput: {
-    flex: 1,
+    marginBottom: SPACING.lg,
   },
   resetButton: {
-    marginBottom: theme.spacing.lg,
-    height: 56,
+    marginBottom: SPACING.lg,
+    height: hp('7%'),
   },
 
   // Back to Login
   backToLoginContainer: {
     alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: SPACING.sm,
+  },
+  backToLoginLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
   },
   backToLoginText: {
     fontFamily: theme.typography.fontFamily,
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.text,
-    textAlign: 'center',
-  },
-  backToLoginLinkText: {
+    fontSize: FONT_SIZE.md,
     color: theme.colors.success,
-    fontFamily: theme.typography.fontFamily,
+    fontWeight: '600',
   },
 
   // Footer Styles
   footerContainer: {
     alignItems: 'center',
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: SPACING.xl,
   },
   securityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.sm,
     backgroundColor: theme.colors.success + '10',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: 20,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: wp('10%'),
     borderWidth: 1,
     borderColor: theme.colors.success + '20',
   },
   securityText: {
-    fontSize: theme.typography.fontSize.xs,
+    fontSize: FONT_SIZE.xs,
     color: theme.colors.text,
     fontFamily: theme.typography.fontFamily,
     textAlign: 'center',

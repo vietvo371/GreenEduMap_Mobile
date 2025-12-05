@@ -7,40 +7,39 @@ import {
   Platform,
   ScrollView,
   SafeAreaView,
-  Dimensions,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
-import DeepLinkHandler from '../utils/DeepLinkHandler';
-import LinearGradient from 'react-native-linear-gradient';
+import { AlertService } from '../services/AlertService';
 import Animated, { FadeInDown, FadeInUp, SlideInDown } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import { theme } from '../theme/colors';
-import Header from '../component/Header';
+import {
+  theme,
+  wp,
+  hp,
+  SPACING,
+  FONT_SIZE,
+  BORDER_RADIUS,
+  ICON_SIZE,
+} from '../theme';
 import InputCustom from '../component/InputCustom';
 import ButtonCustom from '../component/ButtonCustom';
 import LoadingOverlay from '../component/LoadingOverlay';
-import api from '../utils/Api';
-import { useTranslation } from '../hooks/useTranslation';
+import { useAuth } from '../contexts/AuthContext';
 
 interface RegisterScreenProps {
   navigation: any;
 }
 
-const { width, height } = Dimensions.get('window');
-
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
-  const { t } = useTranslation();
+  const { signUp } = useAuth();
 
   const initialFormData = {
+    username: '',
     name: '',
     email: '',
     phone: '',
-    address: '',
     password: '',
     re_password: '',
-    ref_code: '',
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -57,23 +56,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const [showQRScanner, setShowQRScanner] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
-
-  useEffect(() => {
-    const checkPendingRefCode = async () => {
-      const code = await DeepLinkHandler.getPendingRefCode();
-      if (code) {
-        setFormData(prev => ({
-          ...prev,
-          ref_code: code
-        }));
-      }
-    };
-    
-    checkPendingRefCode();
-  }, []);
 
   const validateStep1 = () => {
     const emailError = validateField('email', formData.email);
@@ -90,11 +74,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
   const validateStep2 = () => {
     const nameError = validateField('name', formData.name);
-    const addressError = validateField('address', formData.address);
+    const usernameError = validateField('username', formData.username);
 
     const newErrors = {
       ...(nameError ? { full_name: nameError } : {}),
-      ...(addressError ? { address: addressError } : {})
+      ...(usernameError ? { username: usernameError } : {}),
     };
 
     setErrors(newErrors);
@@ -155,93 +139,80 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     }
     setLoading(true);
     try {
-      const response = await api.post('/auth/register', {
+      // Use signUp from AuthContext - API expects: username, email, password, full_name, phone
+      const result = await signUp({
+        username: formData.username,
         email: formData.email,
-        number_phone: formData.phone,
-        full_name: formData.name,
-        address: formData.address || '',
         password: formData.password,
-        re_password: formData.re_password,
-        ma_gioi_thieu: formData.ref_code || '', 
+        full_name: formData.name,
+        phone: formData.phone,
       });
-      if (response.data.status === false) {
-        Alert.alert(t('auth.registrationFailed'), response.data.message);
-        return;
-      }
-      // Reset form before navigating
-      resetForm();
-      
-      Alert.alert(t('auth.registrationSuccessful'), response.data.message,
-        [
-          {
-            text: t('common.confirm'),
-            onPress: () => navigation.navigate('OTPVerification', {
-              identifier: formData.email,
-              type: 'email',
-              flow: 'register',
-            })
-          }
-        ]
-      );
-     
-    } catch (error: any) {
-      console.log('Registration error:', error.response);
-      if (error.response?.data?.errors) {
-        const fieldMapping: Record<string, string> = {
-          email: 'email',
-          number_phone: 'number_phone',
-          full_name: 'full_name',
-          address: 'address',
-          password: 'password',
-          re_password: 're_password',
-          ma_gioi_thieu: 'ref_code' 
-        };
 
-        const newErrors: Record<string, string> = {};
-        Object.entries(error.response.data.errors).forEach(([field, messages]) => {
-          const mappedField = fieldMapping[field] || field;
-          const errorMessage = Array.isArray(messages) ? messages[0] : messages;
-          newErrors[mappedField] = errorMessage;
-        });
+      if (result.success) {
+        // Reset form before navigating
+        resetForm();
 
-        setErrors(newErrors);
-        
-        const step1Fields = ['email', 'number_phone'];
-        const step2Fields = ['full_name', 'address'];
-        const step3Fields = ['password', 're_password', 'ref_code'];
-        
-        const errorFields = Object.keys(newErrors);
-        
-        if (errorFields.some(field => step1Fields.includes(field))) {
-          setCurrentStep(1);
-        } else if (errorFields.some(field => step2Fields.includes(field))) {
-          setCurrentStep(2);
-        } else if (errorFields.some(field => step3Fields.includes(field))) {
-          setCurrentStep(3);
-        }
-
-      } else if (error.response?.data?.message) {
-        const currentStepFirstField = currentStep === 1 ? 'email' : 
-          currentStep === 2 ? 'full_name' : 'password';
-
-        setErrors({
-          [currentStepFirstField]: error.response.data.message
-        });
-      } else if (error.message) {
-        const currentStepFirstField = currentStep === 1 ? 'email' : 
-          currentStep === 2 ? 'full_name' : 'password';
-
-        setErrors({
-          [currentStepFirstField]: error.message
-        });
+        AlertService.success(
+          'Đăng ký thành công',
+          'Tài khoản của bạn đã được tạo thành công',
+          [
+            {
+              text: 'Xác nhận',
+              onPress: () => {
+                // Navigate to MainTabs after successful registration
+                navigation.navigate('MainTabs');
+              }
+            }
+          ]
+        );
       } else {
-        const currentStepFirstField = currentStep === 1 ? 'email' : 
-          currentStep === 2 ? 'full_name' : 'password';
+        // Handle errors
+        if (result.errors) {
+          const fieldMapping: Record<string, string> = {
+            identifier: 'email',
+            email: 'email',
+            phone: 'number_phone',
+            full_name: 'full_name',
+            username: 'username',
+            password: 'password',
+          };
 
-        setErrors({
-          [currentStepFirstField]: t('auth.registrationFailed')
-        });
+          const newErrors: Record<string, string> = {};
+          Object.entries(result.errors).forEach(([field, message]) => {
+            const mappedField = fieldMapping[field] || field;
+            newErrors[mappedField] = message as string;
+          });
+
+          setErrors(newErrors);
+
+          // Navigate to appropriate step based on errors
+          const step1Fields = ['email', 'number_phone'];
+          const step2Fields = ['full_name', 'username'];
+          const step3Fields = ['password', 're_password'];
+
+          const errorFields = Object.keys(newErrors);
+
+          if (errorFields.some(field => step1Fields.includes(field))) {
+            setCurrentStep(1);
+          } else if (errorFields.some(field => step2Fields.includes(field))) {
+            setCurrentStep(2);
+          } else if (errorFields.some(field => step3Fields.includes(field))) {
+            setCurrentStep(3);
+          }
+        } else if (result.error) {
+          AlertService.error(
+            'Đăng ký thất bại',
+            result.error
+          );
+        }
       }
+
+    } catch (error: any) {
+      console.log('Registration error:', error);
+      AlertService.error(
+        'Đăng ký thất bại',
+        error.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.'
+      );
     } finally {
       setLoading(false);
     }
@@ -253,47 +224,49 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     switch (field) {
       case 'email':
         if (!value) {
-          error = t('auth.emailRequired');
+          error = 'Vui lòng nhập email';
         } else if (!/\S+@\S+\.\S+/.test(value)) {
-          error = t('auth.validEmail');
+          error = 'Email không hợp lệ';
         }
         break;
 
       case 'phone':
         if (!value) {
-          error = t('auth.phoneRequired');
+          error = 'Vui lòng nhập số điện thoại';
         } else if (!/^[0-9+().\-\s]{7,15}$/.test(value)) {
-          error = t('auth.validPhone');
+          error = 'Số điện thoại không hợp lệ';
         }
         break;
 
       case 'name':
         if (!value) {
-          error = t('auth.nameRequired');
+          error = t('auth.nameRequired') || 'Vui lòng nhập họ tên';
         } else if (value.length < 2) {
-          error = t('auth.nameMinLength');
+          error = t('auth.nameMinLength') || 'Họ tên phải có ít nhất 2 ký tự';
         }
         break;
 
-      case 'address':
+      case 'username':
         if (!value) {
-          error = t('auth.addressRequired');
+          error = t('auth.usernameRequired') || 'Vui lòng nhập tên đăng nhập';
+        } else if (value.length < 3) {
+          error = t('auth.usernameMinLength') || 'Tên đăng nhập phải có ít nhất 3 ký tự';
         }
         break;
 
       case 'password':
         if (!value) {
-          error = t('auth.passwordRequired');
-        } else if (value.length < 6) {
-          error = t('auth.passwordMinLength');
+          error = 'Vui lòng nhập mật khẩu';
+        } else if (value.length < 8) {
+          error = 'Mật khẩu phải có ít nhất 8 ký tự';
         }
         break;
 
       case 're_password':
         if (!value) {
-          error = t('auth.confirmPasswordRequired');
+          error = 'Vui lòng xác nhận mật khẩu';
         } else if (value !== formData.password) {
-          error = t('auth.passwordsNotMatch');
+          error = 'Mật khẩu không khớp';
         }
         break;
     }
@@ -312,8 +285,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
   const calculatePasswordStrength = (password: string) => {
     let strength = 0;
-    if (password.length >= 6) strength += 1;
-    if (password.length >= 8) strength += 1;
+    if (password.length >= 8) strength += 1; // Minimum 8 characters (API requirement)
+    if (password.length >= 10) strength += 1;
     if (/[a-z]/.test(password)) strength += 1;
     if (/[A-Z]/.test(password)) strength += 1;
     if (/\d/.test(password)) strength += 1;
@@ -322,16 +295,16 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   };
 
   const getPasswordStrengthText = (strength: number) => {
-    if (strength <= 2) return { text: t('auth.weak'), color: theme.colors.error };
-    if (strength <= 4) return { text: t('auth.medium'), color: theme.colors.warning };
-    return { text: t('auth.strong'), color: theme.colors.success };
+    if (strength <= 2) return { text: 'Yếu', color: theme.colors.error };
+    if (strength <= 4) return { text: 'Trung bình', color: theme.colors.warning };
+    return { text: 'Mạnh', color: theme.colors.success };
   };
 
   const renderStep1 = () => (
     <View style={styles.form}>
       <InputCustom
-        label={t('auth.emailAddress')}
-        placeholder={t('auth.enterEmail')}
+        label="Email"
+        placeholder="Nhập địa chỉ email"
         value={formData.email}
         onChangeText={value => updateFormData('email', value)}
         keyboardType="email-address"
@@ -343,8 +316,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
       />
 
       <InputCustom
-        label={t('auth.phoneNumber')}
-        placeholder={t('auth.enterPhoneNumber')}
+        label="Số điện thoại"
+        placeholder="Nhập số điện thoại"
         value={formData.phone}
         onChangeText={value => updateFormData('phone', value)}
         keyboardType="phone-pad"
@@ -359,8 +332,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const renderStep2 = () => (
     <View style={styles.form}>
       <InputCustom
-        label={t('auth.fullName')}
-        placeholder={t('auth.enterFullName')}
+        label="Họ và tên"
+        placeholder="Nhập họ và tên đầy đủ"
         value={formData.name}
         onChangeText={value => updateFormData('name', value)}
         error={errors.full_name}
@@ -370,13 +343,13 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
       />
 
       <InputCustom
-        label={t('auth.address')}
-        placeholder={t('auth.enterAddress')}
-        value={formData.address}
-        onChangeText={value => updateFormData('address', value)}
-        error={errors.address}
+        label="Tên đăng nhập"
+        placeholder="Nhập tên đăng nhập"
+        value={formData.username}
+        onChangeText={value => updateFormData('username', value)}
+        error={errors.username}
         required
-        leftIcon="map-marker-outline"
+        leftIcon="account-circle-outline"
         containerStyle={styles.input}
       />
     </View>
@@ -385,8 +358,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const renderStep3 = () => (
     <View style={styles.form}>
       <InputCustom
-        label={t('auth.password')}
-        placeholder={t('auth.createPassword')}
+        label="Mật khẩu"
+        placeholder="Tạo mật khẩu"
         value={formData.password}
         onChangeText={(text) => {
           updateFormData('password', text);
@@ -424,8 +397,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
       )}
 
       <InputCustom
-        label={t('auth.confirmPassword')}
-        placeholder={t('auth.confirmYourPassword')}
+        label="Xác nhận mật khẩu"
+        placeholder="Nhập lại mật khẩu"
         value={formData.re_password}
         onChangeText={value => updateFormData('re_password', value)}
         secureTextEntry={!showConfirmPassword}
@@ -437,16 +410,6 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
         containerStyle={styles.input}
       />
 
-      <InputCustom
-        label={t('auth.referralCode')}
-        placeholder={t('auth.enterReferralCode')}
-        value={formData.ref_code}
-        onChangeText={value => updateFormData('ref_code', value)}
-        error={errors.ref_code}
-        leftIcon="account-multiple-plus-outline"
-        containerStyle={styles.input}
-        autoCapitalize="characters"
-      />
     </View>
   );
 
@@ -472,7 +435,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     >
       <View style={styles.formHeader}>
         <Text style={styles.formSubtitle}>
-          {t('auth.signUpJourney') || 'Join us to protect our planet'}
+          Tham gia cùng chúng tôi để bảo vệ hành tinh
         </Text>
         {renderStepIndicator()}
       </View>
@@ -483,13 +446,13 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
       <View style={styles.buttonContainer}>
         <ButtonCustom
-          title={currentStep === 1 ? t('common.back') : t('common.previous')}
+          title={currentStep === 1 ? 'Quay lại' : 'Trước'}
           onPress={handleBack}
           style={styles.backButton}
           variant="outline"
         />
         <ButtonCustom
-          title={currentStep === totalSteps ? t('auth.createAccount') : t('common.next')}
+          title={currentStep === totalSteps ? 'Tạo tài khoản' : 'Tiếp theo'}
           onPress={handleNext}
           style={styles.nextButton}
           icon={currentStep === totalSteps ? "account-plus" : "chevron-right"}
@@ -539,14 +502,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
               style={styles.welcomeText}
               entering={FadeInDown.duration(800).delay(200).springify()}
             >
-              {t('auth.welcomeToGreenEduMap') || 'Welcome to GreenEduMap'}
+              Chào mừng đến với GreenEduMap
             </Animated.Text>
 
             <Animated.Text
               style={styles.title}
               entering={FadeInDown.duration(800).delay(400).springify()}
             >
-{t('auth.createAccount')}
+              Tạo tài khoản
             </Animated.Text>
           </Animated.View>
 
@@ -563,8 +526,10 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
               style={styles.loginLink}
             >
               <Text style={styles.loginText}>
-                {t('auth.alreadyHaveAccount')}{' '}
-                <Text style={styles.loginLinkText}>{t('auth.signInLink')}</Text>
+                Đã có tài khoản?{' '}
+                <Text style={styles.loginLinkText}>
+                  Đăng nhập
+                </Text>
               </Text>
             </TouchableOpacity>
 
@@ -572,14 +537,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
             <View style={styles.securityBadge}>
               <Icon name="shield-check" size={16} color={theme.colors.success} />
               <Text style={styles.securityText}>
-                {t('auth.dataProtected')}
+                Dữ liệu được bảo mật và mã hóa
               </Text>
             </View>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <LoadingOverlay visible={loading} message={t('auth.sendingCode')} />
+      <LoadingOverlay visible={loading} message="Đang tạo tài khoản..." />
       
     </SafeAreaView>
   );
@@ -602,15 +567,15 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: wp('10%'),
+    height: wp('10%'),
+    borderRadius: wp('5%'),
     backgroundColor: theme.colors.white,
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
       ios: {
-        shadowColor: theme.colors.primary,
+        shadowColor: theme.colors.success,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
@@ -622,21 +587,21 @@ const styles = StyleSheet.create({
   },
   decorativeCircle1: {
     position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    top: hp('-6%'),
+    right: wp('-12%'),
+    width: wp('37.5%'),
+    height: wp('37.5%'),
+    borderRadius: wp('18.75%'),
     backgroundColor: theme.colors.success + '15',
   },
   decorativeCircle2: {
     position: 'absolute',
-    bottom: -30,
-    left: -30,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: theme.colors.info + '15',
+    bottom: hp('-4%'),
+    left: wp('-7.5%'),
+    width: wp('25%'),
+    height: wp('25%'),
+    borderRadius: wp('12.5%'),
+    backgroundColor: theme.colors.environmental + '15',
   },
   keyboardAvoidingView: {
     flex: 1,
@@ -649,8 +614,8 @@ const styles = StyleSheet.create({
   // Header Styles
   headerContainer: {
     alignItems: 'center',
-    paddingTop: height * 0.03,
-    paddingBottom: theme.spacing.xl,
+    paddingTop: hp('3%'),
+    paddingBottom: SPACING.xl,
   },
   welcomeText: {
     fontSize: theme.typography.fontSize.md,
@@ -677,9 +642,9 @@ const styles = StyleSheet.create({
   // Form Styles
   formContainer: {
     backgroundColor: theme.colors.white,
-    borderRadius: 32,
-    padding: theme.spacing.xl,
-    marginBottom: theme.spacing.xl,
+    borderRadius: BORDER_RADIUS['2xl'],
+    padding: SPACING.xl,
+    marginBottom: SPACING.xl,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -694,16 +659,17 @@ const styles = StyleSheet.create({
   },
   formHeader: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    marginBottom: SPACING.xl,
   },
   formTitle: {
     fontFamily: theme.typography.fontFamily,
-    fontSize: theme.typography.fontSize.xl,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    fontSize: FONT_SIZE['2xl'],
+    fontWeight: 'bold',
+    color: theme.colors.success,
+    marginBottom: SPACING.xs,
   },
   formSubtitle: {
-    fontSize: theme.typography.fontSize.sm,
+    fontSize: FONT_SIZE.sm,
     color: theme.colors.textLight,
     textAlign: 'center',
   },
@@ -723,15 +689,15 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
   },
   stepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: wp('2%'),
+    height: wp('2%'),
+    borderRadius: wp('1%'),
     backgroundColor: theme.colors.border,
   },
   stepDotActive: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: wp('2.5%'),
+    height: wp('2.5%'),
+    borderRadius: wp('1.25%'),
     backgroundColor: theme.colors.success,
   },
   stepDotCompleted: {
@@ -747,13 +713,13 @@ const styles = StyleSheet.create({
   },
   backButton: {
     flex: 1,
-    height: 48,
+    height: hp('6%'),
     backgroundColor: 'transparent',
     borderColor: theme.colors.border,
   },
   nextButton: {
     flex: 1,
-    height: 48,
+    height: hp('6%'),
     backgroundColor: theme.colors.success,
   },
 
@@ -763,18 +729,18 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   passwordStrengthBar: {
-    height: 4,
+    height: wp('1%'),
     backgroundColor: theme.colors.border,
-    borderRadius: 2,
+    borderRadius: BORDER_RADIUS.xs,
     overflow: 'hidden',
-    marginBottom: theme.spacing.xs,
+    marginBottom: SPACING.xs,
   },
   passwordStrengthFill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: BORDER_RADIUS.xs,
   },
   passwordStrengthText: {
-    fontSize: theme.typography.fontSize.xs,
+    fontSize: FONT_SIZE.xs,
     fontFamily: theme.typography.fontFamily,
     textAlign: 'right',
   },
@@ -782,35 +748,36 @@ const styles = StyleSheet.create({
   // Footer Styles
   footerContainer: {
     alignItems: 'center',
-    paddingBottom: theme.spacing.xl,
-    gap: theme.spacing.lg,
+    paddingBottom: SPACING.xl,
+    gap: SPACING.lg,
   },
   loginLink: {
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: SPACING.sm,
   },
   loginText: {
     fontFamily: theme.typography.fontFamily,
-    fontSize: theme.typography.fontSize.md,
+    fontSize: FONT_SIZE.md,
     color: theme.colors.text,
     textAlign: 'center',
   },
   loginLinkText: {
     color: theme.colors.success,
     fontFamily: theme.typography.fontFamily,
+    fontWeight: '600',
   },
   securityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.sm,
     backgroundColor: theme.colors.success + '10',
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: 20,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: wp('10%'),
     borderWidth: 1,
     borderColor: theme.colors.success + '20',
   },
   securityText: {
-    fontSize: theme.typography.fontSize.xs,
+    fontSize: FONT_SIZE.xs,
     color: theme.colors.text,
     fontFamily: theme.typography.fontFamily,
     textAlign: 'center',
