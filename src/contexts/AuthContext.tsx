@@ -330,7 +330,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Login attempt:', credentials.email);
 
-      // Call authService login
+      // Call authService login - trả về LoginResponse trực tiếp
       const response = await authService.login({
         email: credentials.email,
         password: credentials.password,
@@ -338,7 +338,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Login successful:', response.user);
 
-      // Update context state
+      // Update context state với user từ response
       setUser(response.user);
 
       // Load user's environmental data after sign in
@@ -364,7 +364,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Login error:', error);
 
       // Handle different types of errors
-      let errorMessage = 'Login failed. Please try again.';
+      let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
       const errors: { identifier?: string; password?: string } = {};
 
       if (error.response?.data?.message) {
@@ -391,6 +391,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (userData: SignUpData): Promise<LoginResult> => {
     try {
+      // authService.register trả về LoginResponse trực tiếp
       const response = await authService.register({
         username: userData.username,
         email: userData.email,
@@ -427,7 +428,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error: any) {
       console.log('Sign up error:', error);
 
-      let errorMessage = 'Registration failed. Please try again.';
+      let errorMessage = 'Đăng ký thất bại. Vui lòng thử lại.';
       const errors: { identifier?: string; password?: string } = {};
 
       if (error.response?.data?.message) {

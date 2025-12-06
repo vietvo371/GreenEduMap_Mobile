@@ -725,7 +725,10 @@
   "tabs": {
     "home": "Home",
     "history": "History",
-    "profile": "Profile"
+    "profile": "Profile",
+    "map": "Map",
+    "learn": "Learn",
+    "actions": "Actions"
   },
   "language": {
     "title": "Select Language",

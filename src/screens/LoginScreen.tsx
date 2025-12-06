@@ -117,7 +117,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         <View style={styles.decorativeCircle2} />
 
         {/* Header Icons */}
-        <View style={styles.headerIcons}>
+        {/* <View style={styles.headerIcons}>
           <TouchableOpacity
             style={styles.headerIconButton}
             onPress={() => setShowLanguageSelector(true)}
@@ -136,7 +136,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             console.log('Selected language:', code);
           }}
           currentLanguage="vi"
-        />
+        /> */}
       </View>
 
       <KeyboardAvoidingView

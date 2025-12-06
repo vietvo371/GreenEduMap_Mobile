@@ -10,26 +10,29 @@ export const responsive = {
 
 // Font sizes
 export const FONT_SIZE = {
-  xs: wp('3%'),
-  sm: wp('3.5%'),
-  md: wp('4%'),
-  lg: wp('4.5%'),
-  xl: wp('5%'),
-  '2xl': wp('6%'),
-  '3xl': wp('7.5%'),
-  '4xl': wp('9%'),
+  '2xs': wp('2.5%'),  // ~10px
+  xs: wp('3%'),       // ~12px
+  sm: wp('3.5%'),     // ~14px
+  md: wp('4%'),       // ~16px
+  lg: wp('4.5%'),     // ~18px
+  xl: wp('5%'),       // ~20px
+  '2xl': wp('6%'),    // ~24px
+  '3xl': wp('7.5%'),  // ~30px
+  '4xl': wp('9%'),    // ~36px
   xxl: wp('6%'),
 };
 
 // Spacing
 export const SPACING = {
-  xs: wp('2%'),
-  sm: wp('3%'),
-  md: wp('4%'),
-  lg: wp('5%'),
-  xl: wp('6%'),
-  '2xl': wp('10%'),
-  xxl: wp('8%'),
+  xs: wp('2%'),       // ~8px
+  sm: wp('3%'),       // ~12px
+  md: wp('4%'),       // ~16px
+  lg: wp('5%'),       // ~20px
+  xl: wp('6%'),       // ~24px
+  '2xl': wp('10%'),   // ~40px
+  '3xl': wp('12%'),   // ~48px
+  '4xl': wp('16%'),   // ~64px
+  xxl: wp('8%'),      // ~32px
 };
 
 // Border radius
@@ -41,4 +44,12 @@ export const BORDER_RADIUS = {
   xl: wp('5%'),
   '2xl': wp('8%'),
   full: wp('50%'),
+};
+
+// Screen Padding
+export const SCREEN_PADDING = {
+  horizontal: wp('4%'),  // ~16px
+  vertical: hp('2%'),    // ~16px
+  small: wp('3%'),       // ~12px
+  large: wp('5%'),       // ~20px
 }; 

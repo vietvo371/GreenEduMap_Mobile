@@ -10,6 +10,7 @@ export const COLORS = {
   
   // Text Colors
   text: '#1E2329',
+  textSecondary: '#707A8A',
   textLight: '#707A8A',
   textDark: '#EAECEF',
   textDarkLight: '#B7BDC6',
@@ -31,6 +32,7 @@ export const COLORS = {
   
   // UI Elements
   border: '#E6E8EA',
+  borderLight: '#F3F4F6',
   borderDark: '#2B3139',
   disabled: '#B7BDC6',
   disabledDark: '#474D57',

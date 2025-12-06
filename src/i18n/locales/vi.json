@@ -707,7 +707,10 @@
   "tabs": {
     "home": "Trang chủ",
     "history": "Lịch sử",
-    "profile": "Hồ sơ"
+    "profile": "Hồ sơ",
+    "map": "Bản đồ",
+    "learn": "Học tập",
+    "actions": "Hành động"
   },
   "language": {
     "title": "Chọn ngôn ngữ",

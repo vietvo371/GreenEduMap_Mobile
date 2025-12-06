@@ -29,6 +29,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   
   // Tab Screens
+  Home: undefined;          // Home screen
   Map: undefined;           // Environmental map with OpenAQ, weather overlays
   Learn: undefined;         // Educational content & courses
   Actions: undefined;       // Green actions tracking

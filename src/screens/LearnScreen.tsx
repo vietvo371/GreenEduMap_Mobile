@@ -16,83 +16,67 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  StatusBar,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { StackScreen } from '../navigation/types';
 import { useAuth } from '../contexts/AuthContext';
-import { theme } from '../theme/colors';
-
-// Mock courses data
-const MOCK_COURSES = [
-  {
-    id: '1',
-    title: 'Climate Change Basics',
-    description: 'Understanding the science behind climate change',
-    category: 'climate_change',
-    duration: '2 hours',
-    lessons: 8,
-    difficulty: 'Beginner',
-    icon: 'weather-cloudy',
-    color: '#2196F3',
-    progress: 0,
-  },
-  {
-    id: '2',
-    title: 'Renewable Energy 101',
-    description: 'Introduction to solar, wind, and clean energy',
-    category: 'renewable_energy',
-    duration: '3 hours',
-    lessons: 12,
-    difficulty: 'Beginner',
-    icon: 'solar-power',
-    color: '#FF9800',
-    progress: 25,
-  },
-  {
-    id: '3',
-    title: 'Sustainable Living',
-    description: 'Practical tips for eco-friendly lifestyle',
-    category: 'sustainability',
-    duration: '1.5 hours',
-    lessons: 6,
-    difficulty: 'Beginner',
-    icon: 'leaf',
-    color: '#4CAF50',
-    progress: 0,
-  },
-  {
-    id: '4',
-    title: 'Air Quality & Health',
-    description: 'How air pollution affects our health',
-    category: 'environmental_science',
-    duration: '2.5 hours',
-    lessons: 10,
-    difficulty: 'Intermediate',
-    icon: 'air-filter',
-    color: '#9C27B0',
-    progress: 0,
-  },
-];
+import { theme, SPACING, FONT_SIZE, BORDER_RADIUS, ICON_SIZE } from '../theme';
+import { useGreenCourses } from '../hooks/useSchools';
+import type { GreenCourse } from '../types/api';
 
 const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
   const { educationalProgress } = useAuth();
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<GreenCourse['category'] | 'all'>('all');
+  
+  // Fetch courses from API
+  const { 
+    data: courses, 
+    total,
+    loading, 
+    error, 
+    refetch 
+  } = useGreenCourses({
+    skip: 0,
+    limit: 20,
+    category: selectedCategory !== 'all' ? selectedCategory : undefined,
+  });
+  
+  const [refreshing, setRefreshing] = useState(false);
 
-  const categories = [
-    { id: 'all', label: 'All', icon: 'view-grid' },
-    { id: 'climate_change', label: 'Climate', icon: 'weather-cloudy' },
-    { id: 'renewable_energy', label: 'Energy', icon: 'solar-power' },
-    { id: 'sustainability', label: 'Sustainability', icon: 'leaf' },
-    { id: 'environmental_science', label: 'Science', icon: 'flask' },
+  // Log courses data changes
+  useEffect(() => {
+    console.log('📚 [LearnScreen] Courses updated:', {
+      count: courses.length,
+      total: total,
+      category: selectedCategory,
+      courses: courses.map(c => ({ id: c.id, title: c.title }))
+    });
+  }, [courses, total, selectedCategory]);
+
+  const onRefresh = async () => {
+    console.log('🔄 [LearnScreen] Manual refresh triggered');
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+    console.log('✅ [LearnScreen] Refresh completed');
+  };
+
+  const categories: Array<{ id: GreenCourse['category'] | 'all'; label: string; icon: string }> = [
+    { id: 'all', label: 'Tất cả', icon: 'view-grid' },
+    { id: 'climate_change', label: 'Khí hậu', icon: 'weather-cloudy' },
+    { id: 'renewable_energy', label: 'Năng lượng', icon: 'solar-power' },
+    { id: 'sustainability', label: 'Bền vững', icon: 'leaf' },
+    { id: 'environmental_science', label: 'Khoa học', icon: 'flask' },
+    { id: 'other', label: 'Khác', icon: 'dots-horizontal' },
   ];
 
-  const filteredCourses = selectedCategory === 'all'
-    ? MOCK_COURSES
-    : MOCK_COURSES.filter(c => c.category === selectedCategory);
-
-  const handleCoursePress = (courseId: string) => {
-    navigation.navigate('CourseDetail', { courseId });
+  const handleCoursePress = (courseId: number) => {
+    // TODO: Navigate to course detail screen
+    console.log('Course pressed:', courseId);
   };
 
   const handleAchievementsPress = () => {
@@ -105,6 +89,7 @@ const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.colors.white} />
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -113,7 +98,13 @@ const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
+        }
+      >
         {/* Progress Card */}
         <View style={styles.progressCard}>
           <View style={styles.progressHeader}>
@@ -214,80 +205,105 @@ const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
         {/* Courses List */}
         <View style={styles.coursesSection}>
           <Text style={styles.sectionTitle}>
-            {selectedCategory === 'all' ? 'All Courses' : 'Filtered Courses'}
+            {selectedCategory === 'all' ? 'Tất cả khóa học' : 'Khóa học đã lọc'}
           </Text>
 
-          {filteredCourses.map((course) => (
-            <TouchableOpacity
-              key={course.id}
-              style={styles.courseCard}
-              onPress={() => handleCoursePress(course.id)}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[styles.courseIcon, { backgroundColor: course.color + '20' }]}
+          {loading && courses.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={styles.loadingText}>Đang tải khóa học...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Icon name="alert-circle" size={48} color={theme.colors.error} />
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={refetch}>
+                <Text style={styles.retryButtonText}>Thử lại</Text>
+              </TouchableOpacity>
+            </View>
+          ) : courses.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Icon name="book-off" size={48} color={theme.colors.textLight} />
+              <Text style={styles.emptyText}>Chưa có khóa học nào</Text>
+            </View>
+          ) : (
+            courses.map((course) => (
+              <TouchableOpacity
+                key={course.id}
+                style={styles.courseCard}
+                onPress={() => handleCoursePress(course.id)}
+                activeOpacity={0.7}
               >
-                <Icon name={course.icon} size={32} color={course.color} />
-              </View>
-
-              <View style={styles.courseInfo}>
-                <Text style={styles.courseTitle}>{course.title}</Text>
-                <Text style={styles.courseDescription}>
-                  {course.description}
-                </Text>
-
-                <View style={styles.courseMetadata}>
-                  <View style={styles.metadataItem}>
-                    <Icon
-                      name="clock-outline"
-                      size={14}
-                      color={theme.colors.textLight}
-                    />
-                    <Text style={styles.metadataText}>{course.duration}</Text>
-                  </View>
-
-                  <View style={styles.metadataItem}>
-                    <Icon
-                      name="book-open-variant"
-                      size={14}
-                      color={theme.colors.textLight}
-                    />
-                    <Text style={styles.metadataText}>
-                      {course.lessons} lessons
-                    </Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.difficultyBadge,
-                      {
-                        backgroundColor:
-                          course.difficulty === 'Beginner'
-                            ? '#4CAF50'
-                            : '#FF9800',
-                      },
-                    ]}
-                  >
-                    <Text style={styles.difficultyText}>{course.difficulty}</Text>
-                  </View>
+                <View
+                  style={[styles.courseIcon, { backgroundColor: course.color + '20' }]}
+                >
+                  <Icon name={course.icon} size={32} color={course.color} />
                 </View>
 
-                {course.progress > 0 && (
-                  <View style={styles.progressContainer}>
-                    <View style={styles.progressBar}>
-                      <View
-                        style={[
-                          styles.progressFill,
-                          { width: `${course.progress}%` },
-                        ]}
+                <View style={styles.courseInfo}>
+                  <Text style={styles.courseTitle}>{course.title}</Text>
+                  <Text style={styles.courseDescription}>
+                    {course.description}
+                  </Text>
+
+                  <View style={styles.courseMetadata}>
+                    <View style={styles.metadataItem}>
+                      <Icon
+                        name="clock-outline"
+                        size={14}
+                        color={theme.colors.textLight}
                       />
+                      <Text style={styles.metadataText}>{course.duration_hours}h</Text>
                     </View>
-                    <Text style={styles.progressText}>{course.progress}%</Text>
+
+                    <View style={styles.metadataItem}>
+                      <Icon
+                        name="book-open-variant"
+                        size={14}
+                        color={theme.colors.textLight}
+                      />
+                      <Text style={styles.metadataText}>
+                        {course.lessons_count} bài
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.difficultyBadge,
+                        {
+                          backgroundColor:
+                            course.difficulty === 'beginner'
+                              ? '#4CAF50'
+                              : course.difficulty === 'intermediate'
+                              ? '#FF9800'
+                              : '#F44336',
+                        },
+                      ]}
+                    >
+                      <Text style={styles.difficultyText}>
+                        {course.difficulty === 'beginner' ? 'Cơ bản' : 
+                         course.difficulty === 'intermediate' ? 'Trung cấp' : 'Nâng cao'}
+                      </Text>
+                    </View>
                   </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
+
+                  {course.progress && course.progress > 0 && (
+                    <View style={styles.progressContainer}>
+                      <View style={styles.progressBar}>
+                        <View
+                          style={[
+                            styles.progressFill,
+                            { width: `${course.progress}%` },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.progressText}>{course.progress}%</Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
 
         <View style={styles.bottomPadding} />
@@ -299,70 +315,72 @@ const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFF',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    backgroundColor: theme.colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
+    borderBottomColor: theme.colors.border,
+    ...theme.shadows.sm,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: FONT_SIZE.xl,
     fontWeight: 'bold',
     color: theme.colors.text,
+    fontFamily: theme.typography.fontFamily,
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: FONT_SIZE.xs,
     color: theme.colors.textLight,
+    fontFamily: theme.typography.fontFamily,
   },
   content: {
     flex: 1,
   },
   progressCard: {
-    backgroundColor: '#FFF',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: theme.colors.white,
+    margin: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    ...theme.shadows.sm,
   },
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: SPACING.md,
   },
   progressTitle: {
-    fontSize: 18,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '600',
     color: theme.colors.text,
+    fontFamily: theme.typography.fontFamily,
   },
   progressSubtitle: {
-    fontSize: 14,
+    fontSize: FONT_SIZE.sm,
     color: theme.colors.textLight,
     marginTop: 2,
+    fontFamily: theme.typography.fontFamily,
   },
   xpBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF9E6',
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: BORDER_RADIUS.full,
     gap: 4,
   },
   xpText: {
-    fontSize: 14,
+    fontSize: FONT_SIZE.sm,
     fontWeight: '600',
     color: '#F57C00',
+    fontFamily: theme.typography.fontFamily,
   },
   statsRow: {
     flexDirection: 'row',
@@ -372,109 +390,114 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 20,
+    fontSize: FONT_SIZE.xl,
     fontWeight: 'bold',
     color: theme.colors.text,
-    marginTop: 8,
+    marginTop: SPACING.xs,
+    fontFamily: theme.typography.fontFamily,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: FONT_SIZE.xs,
     color: theme.colors.textLight,
     marginTop: 4,
+    fontFamily: theme.typography.fontFamily,
   },
   quickActions: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    gap: 12,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    gap: SPACING.sm,
   },
   actionButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF',
-    paddingVertical: 12,
-    borderRadius: 8,
-    gap: 8,
+    backgroundColor: theme.colors.white,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.sm,
+    gap: SPACING.xs,
+    ...theme.shadows.sm,
   },
   actionButtonText: {
-    fontSize: 14,
+    fontSize: FONT_SIZE.sm,
     fontWeight: '600',
     color: theme.colors.text,
+    fontFamily: theme.typography.fontFamily,
   },
   categoryFilter: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
   },
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.md,
     paddingVertical: 10,
-    marginRight: 8,
-    backgroundColor: '#FFF',
-    borderRadius: 20,
+    marginRight: SPACING.xs,
+    backgroundColor: theme.colors.white,
+    borderRadius: BORDER_RADIUS.full,
     gap: 6,
+    ...theme.shadows.sm,
   },
   categoryButtonActive: {
     backgroundColor: theme.colors.primary,
   },
   categoryButtonText: {
-    fontSize: 14,
+    fontSize: FONT_SIZE.sm,
     fontWeight: '600',
     color: theme.colors.text,
+    fontFamily: theme.typography.fontFamily,
   },
   categoryButtonTextActive: {
-    color: '#FFF',
+    color: theme.colors.white,
   },
   coursesSection: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.md,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: FONT_SIZE.lg,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
+    fontFamily: theme.typography.fontFamily,
   },
   courseCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: theme.colors.white,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    marginBottom: SPACING.sm,
+    ...theme.shadows.sm,
   },
   courseIcon: {
     width: 64,
     height: 64,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: SPACING.sm,
   },
   courseInfo: {
     flex: 1,
   },
   courseTitle: {
-    fontSize: 16,
+    fontSize: FONT_SIZE.md,
     fontWeight: '600',
     color: theme.colors.text,
     marginBottom: 4,
+    fontFamily: theme.typography.fontFamily,
   },
   courseDescription: {
-    fontSize: 13,
+    fontSize: FONT_SIZE.sm,
     color: theme.colors.textLight,
-    marginBottom: 8,
+    marginBottom: SPACING.xs,
+    fontFamily: theme.typography.fontFamily,
   },
   courseMetadata: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.sm,
   },
   metadataItem: {
     flexDirection: 'row',
@@ -482,43 +505,94 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metadataText: {
-    fontSize: 12,
+    fontSize: FONT_SIZE.xs,
     color: theme.colors.textLight,
+    fontFamily: theme.typography.fontFamily,
   },
   difficultyBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: SPACING.xs,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: BORDER_RADIUS.xs,
   },
   difficultyText: {
-    fontSize: 10,
+    fontSize: FONT_SIZE['2xs'],
     fontWeight: '600',
-    color: '#FFF',
+    color: theme.colors.white,
+    fontFamily: theme.typography.fontFamily,
   },
   progressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    gap: 8,
+    marginTop: SPACING.xs,
+    gap: SPACING.xs,
   },
   progressBar: {
     flex: 1,
     height: 6,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 3,
+    backgroundColor: theme.colors.border,
+    borderRadius: BORDER_RADIUS.xs,
   },
   progressFill: {
     height: '100%',
     backgroundColor: theme.colors.primary,
-    borderRadius: 3,
+    borderRadius: BORDER_RADIUS.xs,
   },
   progressText: {
-    fontSize: 12,
+    fontSize: FONT_SIZE.xs,
     fontWeight: '600',
     color: theme.colors.primary,
+    fontFamily: theme.typography.fontFamily,
   },
   bottomPadding: {
-    height: 20,
+    height: SPACING.xl,
+  },
+  // Loading, Error, Empty States
+  loadingContainer: {
+    paddingVertical: SPACING['4xl'],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    fontSize: FONT_SIZE.md,
+    color: theme.colors.textLight,
+    fontFamily: theme.typography.fontFamily,
+  },
+  errorContainer: {
+    paddingVertical: SPACING['4xl'],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorText: {
+    marginTop: SPACING.md,
+    marginBottom: SPACING.lg,
+    fontSize: FONT_SIZE.md,
+    color: theme.colors.error,
+    textAlign: 'center',
+    fontFamily: theme.typography.fontFamily,
+  },
+  retryButton: {
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.sm,
+    backgroundColor: theme.colors.primary,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  retryButtonText: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '600',
+    color: theme.colors.white,
+    fontFamily: theme.typography.fontFamily,
+  },
+  emptyContainer: {
+    paddingVertical: SPACING['4xl'],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    marginTop: SPACING.md,
+    fontSize: FONT_SIZE.md,
+    color: theme.colors.textLight,
+    fontFamily: theme.typography.fontFamily,
   },
 });
 

@@ -1,589 +1,649 @@
-import * as React from 'react';
-import { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Platform,
-  Alert,
-  RefreshControl,
-} from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  Image, 
+  StatusBar, 
+  RefreshControl, 
+  ActivityIndicator,
+  Animated,
+  Platform,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
-import { theme } from '../theme/colors';
-import { StackScreen } from '../navigation/types';
-import { removeUser, removeToken, getUser } from '../utils/TokenManager';
-import api from '../utils/Api';
-import { useTranslation } from '../hooks/useTranslation';
-import LoadingOverlay from '../component/LoadingOverlay';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  theme,
+  SPACING,
+  FONT_SIZE,
+  BORDER_RADIUS,
+  ICON_SIZE,
+  SCREEN_PADDING,
+  wp,
+  hp,
+} from '../theme';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { AlertService } from '../services/AlertService';
 
-type BankAccount = {
-  bank: string;
-  accountNumber: string;
-  accountName: string;
-};
-
-type TRC20Address = {
-  name: string;
-  address: string;
-};
-
-type MenuItem = {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  route: string;
-};
-
-const getMenuItems = (t: any) => [
-  {
-    id: 'security',
-    title: t('profile.verification'),
-    description: t('profile.verificationDesc'),
-    icon: 'shield-lock',
-    route: 'Security',
-  },
-  {
-    id: 'help',
-    title: t('profile.help'),
-    description: t('profile.helpDesc'),
-    icon: 'help-circle',
-    route: 'Help',
-  },
-];
-
-interface UserProfile {
-  full_name: string;
-  email: string;
-  number_phone: string;
-  address: string;
-  is_ekyc: number;
-  is_active_mail: number;
-  is_active_phone: number;
-  is_open: number;
-  is_level: number;
-}
-
-const ProfileScreen: StackScreen<'Profile'> = () => {
-  const { t } = useTranslation();
+const ProfileScreen = () => {
   const navigation = useNavigation();
-  const menuItems = getMenuItems(t);
-  const [loading, setLoading] = useState(true);
+  const { user, signOut } = useAuth();
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [user, setUser] = useState<any>(null);
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const userData = await getUser();
-        setUser(userData);
-      } catch (error) {
-        console.error('Error loading user:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadUser();
-  }, []);
+  // Animation refs for menu modal
+  const slideAnim = useRef(new Animated.Value(500)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
 
-  const signOut = async () => {
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(false);
+    }, [])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    // TODO: Fetch profile data
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  };
+
+  const menuItems = [
+    {
+      title: 'Tài khoản',
+      items: [
+        { id: 'profile', icon: 'account-outline', label: 'Thông tin cá nhân', route: 'EditProfile' },
+        { id: 'security', icon: 'shield-check-outline', label: 'Bảo mật', route: 'Security' },
+      ]
+    },
+    {
+      title: 'Cài đặt & Hỗ trợ',
+      items: [
+        { id: 'notifications', icon: 'bell-outline', label: 'Thông báo', route: 'Notifications' },
+        { id: 'help', icon: 'help-circle-outline', label: 'Trung tâm trợ giúp', route: 'Help' },
+      ]
+    },
+    {
+      title: '',
+      items: [
+        { id: 'logout', icon: 'logout', label: 'Đăng xuất', route: null },
+      ]
+    }
+  ];
+
+  const handleLogout = async () => {
     try {
-
-      await removeToken();
-      await removeUser();
-      (navigation as any).replace('Login');
-      await api.get('/vip/action/logout');
+      await signOut();
+      (navigation as any).reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('Logout error:', error);
+      AlertService.error('Lỗi', 'Không thể đăng xuất. Vui lòng thử lại.');
     }
   };
 
+  const handleMenuPress = (itemId: string, route: string | null) => {
+    handleCloseMenuModal();
 
-  const handleSignOut = () => {
-    Alert.alert(
-      t('profile.signOut'),
-      t('profile.signOutConfirm'),
-      [
-        { text: t('profile.cancel'), style: 'cancel' },
-        {
-          text: t('profile.signOut'),
-          style: 'destructive',
-          onPress: () => {
-            signOut();
-          },
-        },
-      ]
-    );
+    setTimeout(() => {
+      if (itemId === 'logout') {
+        AlertService.confirm(
+          'Đăng xuất',
+          'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?',
+          handleLogout
+        );
+      } else if (route) {
+        (navigation as any).navigate(route);
+      }
+    }, 300);
   };
 
-
-  const renderMenuItem = (item: MenuItem) => {
-    const hasItems = Array.isArray((item as any).items) && ((item as any).items as any[]).length > 0;
-    
-    return (
-      <View key={item.id}>
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => {navigation.navigate(item.route as any)}}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.menuIcon, { backgroundColor: '#4A90E215' }]}>
-            <Icon name={item.icon} size={24} color="#4A90E2" />
-          </View>
-          <View style={styles.menuContent}>
-            <Text style={styles.menuTitle}>{item.title}</Text>
-            <Text style={styles.menuDescription}>{item.description}</Text>
-          </View>
-          <Icon name="chevron-right" size={20} color="#8E8E93" />
-        </TouchableOpacity>
-
-      </View>
-    );
+  const handleCloseMenuModal = () => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 500,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowMenuModal(false);
+    });
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <LoadingOverlay
-          visible={loading}
-          message={t('profile.loadingProfile')}
-        />
-      </SafeAreaView>
-    );
-  }
+  useEffect(() => {
+    if (showMenuModal) {
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 65,
+          friction: 11,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [showMenuModal]);
+
+  const formatPoints = (points: number) => {
+    return points.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.backgroundContainer}>
-      </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.colors.success} />
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {}}
-            colors={[theme.colors.primary]}
-            tintColor={theme.colors.primary}
-          />
-        }
-      >
-        {/* Profile Header */}
-        <View style={styles.header}>
-          <View style={styles.avatarContainer}>
-            <Image
-              source={require('../assets/images/avatar.jpeg')}
-              style={styles.avatar}
-            />
-            <TouchableOpacity 
-              style={styles.editButton}
-              activeOpacity={0.7}
-              onPress={() => (navigation as any).navigate('EditProfile')}
-            >
-              <Icon name="pencil" size={16} color="#FFFFFF" />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.success} />
+          <Text style={styles.loadingText}>Đang tải...</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Header Profile */}
+          <View style={styles.headerContainer}>
+            {/* Colored Background */}
+            <View style={styles.headerBackground}>
+              {/* Settings Button */}
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => setShowMenuModal(true)}
+              >
+                <Icon name="cog-outline" size={ICON_SIZE.md} color={theme.colors.white} />
+              </TouchableOpacity>
+
+              <View style={styles.profileContent}>
+                <View style={styles.avatarWrapper}>
+                  {user?.avatar ? (
+                    <Image source={{ uri: user.avatar }} style={styles.avatar} />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Text style={styles.avatarText}>
+                        {user?.full_name?.charAt(0).toUpperCase() || 'U'}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.verifiedBadge}>
+                    <Icon name="check-decagram" size={16} color={theme.colors.success} />
+                  </View>
+                </View>
+
+                <Text style={styles.userName}>{user?.full_name || 'Người dùng'}</Text>
+                <Text style={styles.userEmail}>{user?.email || ''}</Text>
+              </View>
+            </View>
+
+            {/* Floating Stats Card */}
+            <View style={styles.statsCard}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{user?.carbon_saved || 0}</Text>
+                <Text style={styles.statLabel}>CO₂ tiết kiệm</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {user?.points ? formatPoints(user.points) : '0'}
+                </Text>
+                <Text style={styles.statLabel}>Điểm xanh</Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {user?.badge_level || 0}
+                </Text>
+                <Text style={styles.statLabel}>Cấp độ</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Quick Stats Cards */}
+          <View style={styles.quickStatsSection}>
+            <TouchableOpacity style={styles.quickStatCard} activeOpacity={0.7}>
+              <View style={[styles.quickStatIcon, { backgroundColor: theme.colors.successLight }]}>
+                <Icon name="tree" size={ICON_SIZE.lg} color={theme.colors.success} />
+              </View>
+              <Text style={styles.quickStatValue}>0</Text>
+              <Text style={styles.quickStatLabel}>Hành động xanh</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.quickStatCard} activeOpacity={0.7}>
+              <View style={[styles.quickStatIcon, { backgroundColor: theme.colors.infoLight }]}>
+                <Icon name="book-open-variant" size={ICON_SIZE.lg} color={theme.colors.info} />
+              </View>
+              <Text style={styles.quickStatValue}>0</Text>
+              <Text style={styles.quickStatLabel}>Khóa học</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.quickStatCard} activeOpacity={0.7}>
+              <View style={[styles.quickStatIcon, { backgroundColor: theme.colors.warningLight }]}>
+                <Icon name="trophy" size={ICON_SIZE.lg} color={theme.colors.warning} />
+              </View>
+              <Text style={styles.quickStatValue}>0</Text>
+              <Text style={styles.quickStatLabel}>Thành tích</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.userInfo}>
-            <Text style={styles.name}>{user?.full_name || 'Loading...'}</Text>
-            <Text style={styles.email}>{user?.email || 'Loading...'}</Text>
-            {user?.note && (
-              <Text style={styles.note}>{user.note}</Text>
-            )}
+          {/* Environmental Impact Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Tác động môi trường</Text>
+            <View style={styles.impactCard}>
+              <View style={styles.impactRow}>
+                <View style={styles.impactItem}>
+                  <Icon name="water" size={ICON_SIZE.md} color={theme.colors.info} />
+                  <Text style={styles.impactLabel}>Nước tiết kiệm</Text>
+                  <Text style={styles.impactValue}>0 lít</Text>
+                </View>
+                <View style={styles.impactItem}>
+                  <Icon name="flash" size={ICON_SIZE.md} color={theme.colors.warning} />
+                  <Text style={styles.impactLabel}>Điện tiết kiệm</Text>
+                  <Text style={styles.impactValue}>0 kWh</Text>
+                </View>
+              </View>
+            </View>
           </View>
-        </View>
 
-     
+          {/* System Info */}
+          <View style={styles.systemInfo}>
+            <Icon name="leaf" size={ICON_SIZE.xs} color={theme.colors.success} />
+            <Text style={styles.systemInfoText}>GreenEduMap v1.0.0</Text>
+          </View>
+        </ScrollView>
+      )}
 
+      {/* Menu Modal - Animated Bottom Sheet */}
+      {showMenuModal && (
+        <>
+          {/* Backdrop */}
+          <Animated.View
+            style={[
+              styles.backdrop,
+              {
+                opacity: backdropAnim,
+              }
+            ]}
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={handleCloseMenuModal}
+            />
+          </Animated.View>
 
-        {/* Menu Items */}
-        <View style={styles.menuContainer}>
-          {menuItems.map(renderMenuItem)}
-        </View>
+          <Animated.View
+            style={[
+              styles.menuModalContent,
+              {
+                transform: [{ translateY: slideAnim }],
+              }
+            ]}
+          >
+            <View style={styles.sheetHandle} />
 
-        {/* Sign Out Button */}
-        <TouchableOpacity
-          style={styles.signOutButton}
-          onPress={handleSignOut}
-          activeOpacity={0.7}
-        >
-          <Icon name="logout" size={20} color="#FF3B30" />
-          <Text style={styles.signOutText}>{t('profile.signOut')}</Text>
-        </TouchableOpacity>
-      </ScrollView>
+            {/* Modal Header */}
+            <View style={styles.menuModalHeader}>
+              <Text style={styles.menuModalTitle}>Cài đặt</Text>
+              <TouchableOpacity onPress={handleCloseMenuModal}>
+                <Icon name="close" size={ICON_SIZE.md} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
 
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {menuItems.map((section, index) => (
+                <View key={index} style={styles.menuSection}>
+                  {section.title ? <Text style={styles.menuSectionTitle}>{section.title}</Text> : null}
+                  <View style={styles.menuSectionContent}>
+                    {section.items.map((item, idx) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[
+                          styles.menuModalItem,
+                          idx === section.items.length - 1 && styles.lastMenuItem
+                        ]}
+                        onPress={() => handleMenuPress(item.id, item.route)}
+                      >
+                        <View style={styles.menuIconBox}>
+                          <Icon
+                            name={item.icon}
+                            size={ICON_SIZE.md}
+                            color={item.id === 'logout' ? theme.colors.error : theme.colors.text}
+                          />
+                        </View>
+                        <Text style={[
+                          styles.menuLabel,
+                          item.id === 'logout' && { color: theme.colors.error }
+                        ]}>
+                          {item.label}
+                        </Text>
+                        <Icon name="chevron-right" size={ICON_SIZE.md} color={theme.colors.textSecondary} />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        </>
+      )}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  subItemsContainer: {
-    backgroundColor: '#F8F8F8',
-    marginHorizontal: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  subItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  subItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  bankInfo: {
-    flex: 1,
-  },
-  bankName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  accountNumber: {
-    fontSize: 15,
-    color: '#666',
-    marginBottom: 2,
-  },
-  accountName: {
-    fontSize: 14,
-    color: '#666',
-  },
-  walletInfo: {
-    flex: 1,
-  },
-  walletName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  walletAddress: {
-    fontSize: 15,
-    color: '#666',
-  },
-  copyButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#4A90E215',
-  },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.background,
   },
-  backgroundContainer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  content: {
+  scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    flexGrow: 1,
+    paddingBottom: SPACING['4xl'],
   },
-  header: {
+  headerContainer: {
+    marginBottom: SPACING.lg,
+  },
+  headerBackground: {
+    backgroundColor: theme.colors.success,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    paddingBottom: SPACING['3xl'] + SPACING.lg,
+    paddingHorizontal: SCREEN_PADDING.horizontal,
     alignItems: 'center',
-    marginBottom: 24,
+    borderBottomLeftRadius: BORDER_RADIUS['2xl'],
+    borderBottomRightRadius: BORDER_RADIUS['2xl'],
   },
-  avatarContainer: {
+  settingsButton: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + SPACING.md : SPACING.xl,
+    right: SCREEN_PADDING.horizontal,
+    padding: SPACING.xs,
+    zIndex: 10,
+  },
+  profileContent: {
+    alignItems: 'center',
+    marginTop: SPACING.xl,
+  },
+  avatarWrapper: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: SPACING.sm,
+    padding: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: wp('12%'),
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
+    width: wp('22%'),
+    height: wp('22%'),
+    borderRadius: wp('11%'),
+    borderWidth: 2,
+    borderColor: theme.colors.white,
   },
-  editButton: {
+  avatarPlaceholder: {
+    width: wp('22%'),
+    height: wp('22%'),
+    borderRadius: wp('11%'),
+    backgroundColor: theme.colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.white,
+  },
+  avatarText: {
+    fontSize: FONT_SIZE['3xl'],
+    fontWeight: '700',
+    color: theme.colors.success,
+  },
+  verifiedBadge: {
     position: 'absolute',
-    right: 0,
     bottom: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#4A90E2',
+    right: 0,
+    backgroundColor: theme.colors.white,
+    borderRadius: 12,
+    padding: 2,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  userName: {
+    fontSize: FONT_SIZE['2xl'],
+    fontWeight: '700',
+    color: theme.colors.white,
+    marginBottom: 4,
+  },
+  userEmail: {
+    fontSize: FONT_SIZE.sm,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '500',
+  },
+  statsCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: theme.colors.white,
+    borderRadius: BORDER_RADIUS.xl,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+    marginHorizontal: SCREEN_PADDING.horizontal,
+    marginTop: -SPACING['3xl'],
+    ...theme.shadows.md,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statValue: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '700',
+    color: theme.colors.success,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+  },
+  divider: {
+    width: 1,
+    height: '80%',
+    backgroundColor: theme.colors.borderLight,
+    alignSelf: 'center',
+  },
+  quickStatsSection: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    paddingHorizontal: SCREEN_PADDING.horizontal,
+    marginTop: SPACING.xl,
+  },
+  quickStatCard: {
+    flex: 1,
+    backgroundColor: theme.colors.white,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    alignItems: 'center',
+    ...theme.shadows.sm,
+  },
+  quickStatIcon: {
+    width: wp('12%'),
+    height: wp('12%'),
+    borderRadius: BORDER_RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    marginBottom: SPACING.sm,
   },
-  userInfo: {
-    alignItems: 'center',
-  },
-  name: {
-    fontSize: 24,
+  quickStatValue: {
+    fontSize: FONT_SIZE.xl,
     fontWeight: '700',
-    color: '#1C1C1E',
-    marginBottom: 4,
+    color: theme.colors.text,
+    marginBottom: 2,
   },
-  email: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginBottom: 4,
-  },
-  phone: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginBottom: 4,
-  },
-  address: {
-    fontSize: 14,
-    color: '#8E8E93',
-    marginBottom: 4,
-  },
-  note: {
-    fontSize: 12,
-    color: '#8E8E93',
-    fontStyle: 'italic',
+  quickStatLabel: {
+    fontSize: FONT_SIZE['2xs'],
+    color: theme.colors.textSecondary,
     textAlign: 'center',
-    marginTop: 4,
   },
-  badgesContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
+  section: {
+    paddingHorizontal: SCREEN_PADDING.horizontal,
+    marginTop: SPACING.xl,
   },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  verificationCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginBottom: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  verificationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  verificationTitle: {
-    fontSize: 16,
+  sectionTitle: {
+    fontSize: FONT_SIZE.lg,
     fontWeight: '700',
-    color: '#000',
+    color: theme.colors.text,
+    marginBottom: SPACING.md,
   },
-  verificationItem: {
+  impactCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    ...theme.shadows.sm,
+  },
+  impactRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#F2F2F7',
+    gap: SPACING.lg,
   },
-  verificationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  verificationContent: {
+  impactItem: {
     flex: 1,
-  },
-  verificationName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 2,
-  },
-  verificationDesc: {
-    fontSize: 13,
-    color: '#666',
-  },
-  statusChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  statusChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  balanceCard: {
-    backgroundColor: '#4A90E2',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-  },
-  balanceTitle: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    opacity: 0.8,
-    marginBottom: 8,
-  },
-  balanceAmount: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  verifiedTag: {
-    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#34C75915',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    gap: 4,
   },
-  menuContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+  impactLabel: {
+    fontSize: FONT_SIZE.xs,
+    color: theme.colors.textSecondary,
+    marginTop: SPACING.xs,
+    marginBottom: 4,
   },
-  menuItem: {
+  impactValue: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  systemInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F2F7',
-  },
-  menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-  },
-  menuContent: {
-    flex: 1,
-  },
-  menuTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 2,
-  },
-  menuDescription: {
-    fontSize: 14,
-    color: '#8E8E93',
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 32,
-    padding: 16,
-    backgroundColor: '#FFEBEE',
-    borderRadius: 12,
     gap: 8,
+    marginTop: SPACING.xl,
+    opacity: 0.7,
   },
-  signOutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FF3B30',
+  systemInfoText: {
+    fontSize: FONT_SIZE.xs,
+    color: theme.colors.textSecondary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    padding: SPACING['3xl'],
   },
   loadingText: {
-    fontSize: 16,
-    color: '#8E8E93',
-    marginTop: 16,
-    fontFamily: theme.typography.fontFamily,
+    marginTop: SPACING.md,
+    fontSize: FONT_SIZE.md,
+    color: theme.colors.textSecondary,
   },
-  vipAccessButton: {
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 999,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: theme.colors.borderLight,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  menuModalContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: theme.colors.white,
+    borderTopLeftRadius: BORDER_RADIUS['2xl'],
+    borderTopRightRadius: BORDER_RADIUS['2xl'],
+    maxHeight: '80%',
+    paddingBottom: SPACING.xl,
+    zIndex: 1000,
+    ...theme.shadows.xl,
+  },
+  menuModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: SCREEN_PADDING.horizontal,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
+  },
+  menuModalTitle: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  menuSection: {
+    paddingHorizontal: SCREEN_PADDING.horizontal,
+    marginTop: SPACING.lg,
+  },
+  menuSectionTitle: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    marginBottom: SPACING.sm,
+    marginLeft: SPACING.xs,
+  },
+  menuSectionContent: {
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: BORDER_RADIUS.lg,
+    overflow: 'hidden',
+  },
+  menuModalItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    marginBottom: 16,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    padding: SPACING.md,
+    backgroundColor: theme.colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight,
   },
-  vipIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFD70015',
+  lastMenuItem: {
+    borderBottomWidth: 0,
+  },
+  menuIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: theme.colors.backgroundSecondary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: SPACING.md,
   },
-  vipContent: {
+  menuLabel: {
     flex: 1,
-  },
-  vipTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1C1C1E',
-    marginBottom: 2,
-  },
-  vipDescription: {
-    fontSize: 14,
-    color: '#8E8E93',
+    fontSize: FONT_SIZE.md,
+    color: theme.colors.text,
+    fontWeight: '500',
   },
 });
 

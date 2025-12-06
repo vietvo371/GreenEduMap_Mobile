@@ -6,7 +6,7 @@
 export { theme, COLORS } from './colors';
 export { typography, textStyles, createTextStyle } from './typography';
 export { componentStyles } from './components';
-export { responsive, FONT_SIZE, SPACING, BORDER_RADIUS } from './responsive';
+export { responsive, FONT_SIZE, SPACING, BORDER_RADIUS, SCREEN_PADDING } from './responsive';
 
 // Re-export commonly used utilities
 export {
@@ -21,8 +21,9 @@ export const ICON_SIZE = {
   xs: 16,
   sm: 20,
   md: 24,
-  lg: 32,
-  xl: 40,
+  lg: 28,
+  xl: 32,
+  '2xl': 40,
   xxl: 48,
   xxxl: 64,
 } as const;

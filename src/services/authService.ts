@@ -13,13 +13,12 @@ export const authService = {
 
     login: async (credentials: LoginRequest): Promise<LoginResponse> => {
         try {
-            const response = await api.post<ApiResponse<LoginResponse>>('/auth/login', credentials);
+            // API trả về trực tiếp LoginResponse (không có wrapper ApiResponse)
+            const response = await api.post<LoginResponse>('/auth/login', credentials);
 
-            if (!response.data.success) {
-                throw new Error(response.data.message || 'Đăng nhập thất bại');
-            }
-
-            const data = response.data.data;
+            const data = response.data;
+            
+            // Lưu tokens và user data
             if (data.access_token) {
                 await AsyncStorage.setItem(TOKEN_KEY, data.access_token);
             }
@@ -39,13 +38,12 @@ export const authService = {
 
     register: async (data: RegisterRequest): Promise<LoginResponse> => {
         try {
-            const response = await api.post<ApiResponse<LoginResponse>>('/auth/register', data);
+            // API trả về trực tiếp LoginResponse (không có wrapper ApiResponse)
+            const response = await api.post<LoginResponse>('/auth/register', data);
 
-            if (!response.data.success) {
-                throw new Error(response.data.message || 'Đăng ký thất bại');
-            }
-
-            const responseData = response.data.data;
+            const responseData = response.data;
+            
+            // Lưu tokens và user data
             if (responseData.access_token) {
                 await AsyncStorage.setItem(TOKEN_KEY, responseData.access_token);
             }
@@ -79,11 +77,15 @@ export const authService = {
 
     getProfile: async (): Promise<User> => {
         const response = await api.get<ApiResponse<User>>('/auth/me');
-        return response.data.data;
+        if (response.data.success && response.data.data) {
+            return response.data.data;
+        }
+        throw new Error('Không thể lấy thông tin người dùng');
     },
 
     updateProfile: async (data: UpdateProfileRequest): Promise<User> => {
-        const response = await api.put<ApiResponse<User>>('/auth/profile', data);
+        // API collection sử dụng PATCH thay vì PUT
+        const response = await api.patch<ApiResponse<User>>('/auth/profile', data);
         console.log('Update profile response:', response.data);
 
         if (response.data.success && response.data.data) {
@@ -111,19 +113,22 @@ export const authService = {
     refreshToken: async (): Promise<string> => {
         const refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
         if (!refreshToken) {
-            throw new Error('No refresh token available');
+            throw new Error('Không có refresh token');
         }
 
-        const response = await api.post<ApiResponse<{ token: string; refreshToken?: string }>>('/auth/refresh', {
+        // API trả về access_token & refresh_token mới
+        const response = await api.post<{ access_token: string; refresh_token: string }>('/auth/refresh', {
             refresh_token: refreshToken
         });
 
-        if (response.data.success && response.data.data.token) {
-            await AsyncStorage.setItem(TOKEN_KEY, response.data.data.token);
-            if (response.data.data.refreshToken) {
-                await AsyncStorage.setItem(REFRESH_TOKEN_KEY, response.data.data.refreshToken);
+        const data = response.data;
+        
+        if (data.access_token) {
+            await AsyncStorage.setItem(TOKEN_KEY, data.access_token);
+            if (data.refresh_token) {
+                await AsyncStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
             }
-            return response.data.data.token;
+            return data.access_token;
         }
 
         throw new Error('Làm mới token thất bại');

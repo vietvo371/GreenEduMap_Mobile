@@ -9,10 +9,11 @@
  */
 
 import * as React from 'react';
+import { Platform } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { theme } from '../theme/colors';
+import { theme, ICON_SIZE, SPACING } from '../theme';
 import { RootStackParamList } from './types';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from '../hooks/useTranslation';
@@ -31,6 +32,7 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 // ============================================================================
 // MAIN TAB SCREENS
 // ============================================================================
+import HomeScreen from '../screens/HomeScreen';
 import MapScreen from '../screens/MapScreenMapbox'; // Using Mapbox GL
 import LearnScreen from '../screens/LearnScreen';
 import ActionsScreen from '../screens/ActionsScreen';
@@ -59,43 +61,68 @@ const Tab = createBottomTabNavigator<RootStackParamList>();
 // MAIN TABS COMPONENT
 // ============================================================================
 const MainTabs = () => {
-  const { userRole } = useAuth();
+  const { user } = useAuth();
   const { t } = useTranslation();
 
   const tabScreenOptions = {
     headerShown: false,
-    tabBarActiveTintColor: theme.colors.primary,
+    tabBarActiveTintColor: theme.colors.success,
     tabBarInactiveTintColor: theme.colors.textLight,
     tabBarStyle: {
       backgroundColor: theme.colors.white,
       borderTopColor: theme.colors.border,
-      paddingBottom: 8,
-      paddingTop: 8,
-      height: 60,
-      elevation: 8,
-      shadowColor: theme.colors.primary,
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 12,
-      marginBottom: 12,
+      borderTopWidth: 1,
+      paddingBottom: Platform.select({
+        ios: SPACING.md, // Extra padding for iOS home indicator
+        android: SPACING.sm,
+      }),
+      height: Platform.select({
+        ios: theme.layout.bottomTabHeight + 20, // Extra height for iOS
+        android: theme.layout.bottomTabHeight,
+      }),
+      ...theme.shadows.md,
     },
     tabBarLabelStyle: {
       fontFamily: theme.typography.fontFamily,
-      fontSize: 12,
+      fontSize: theme.typography.fontSize.xs,
       fontWeight: '600' as any,
+      marginTop: 2,
+    },
+    tabBarIconStyle: {
+      marginTop: 4,
     },
   };
 
   return (
     <Tab.Navigator screenOptions={tabScreenOptions}>
+      {/* Home Tab - Dashboard */}
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          title: t('tabs.home'),
+          tabBarIcon: ({ color, focused }) => (
+            <Icon 
+              name="home-variant" 
+              size={focused ? ICON_SIZE.lg : ICON_SIZE.md} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+
       {/* Map Tab - Environmental Monitoring */}
       <Tab.Screen
         name="Map"
         component={MapScreen}
         options={{
-          title: 'Map',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="map-marker-radius" size={size} color={color} />
+          title: t('tabs.map'),
+          tabBarIcon: ({ color, focused }) => (
+            <Icon 
+              name="map-marker-radius" 
+              size={focused ? ICON_SIZE.lg : ICON_SIZE.md} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -105,9 +132,13 @@ const MainTabs = () => {
         name="Learn"
         component={LearnScreen}
         options={{
-          title: 'Learn',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="book-open-variant" size={size} color={color} />
+          title: t('tabs.learn'),
+          tabBarIcon: ({ color, focused }) => (
+            <Icon 
+              name="book-open-variant" 
+              size={focused ? ICON_SIZE.lg : ICON_SIZE.md} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -117,9 +148,13 @@ const MainTabs = () => {
         name="Actions"
         component={ActionsScreen}
         options={{
-          title: 'Actions',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="leaf" size={size} color={color} />
+          title: t('tabs.actions'),
+          tabBarIcon: ({ color, focused }) => (
+            <Icon 
+              name="leaf" 
+              size={focused ? ICON_SIZE.lg : ICON_SIZE.md} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -129,9 +164,13 @@ const MainTabs = () => {
         name="Profile"
         component={ProfileScreen}
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="account" size={size} color={color} />
+          title: t('tabs.profile'),
+          tabBarIcon: ({ color, focused }) => (
+            <Icon 
+              name="account" 
+              size={focused ? ICON_SIZE.lg : ICON_SIZE.md} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -149,11 +188,11 @@ const MainNavigator = () => {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
-        animationDuration: 300,
+        animationDuration: theme.animation.duration.normal,
         animationTypeForReplace: 'push',
         presentation: 'card',
         contentStyle: {
-          backgroundColor: theme.colors.white,
+          backgroundColor: theme.colors.background,
         },
       }}
     >
