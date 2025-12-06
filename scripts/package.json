@@ -1,0 +1,17 @@
+{
+  "name": "api-doc-generator",
+  "version": "1.0.0",
+  "description": "Generate API documentation with real responses",
+  "scripts": {
+    "generate-docs": "ts-node generateApiDocs.ts",
+    "test-api": "ts-node generateApiDocs.ts"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  }
+}
