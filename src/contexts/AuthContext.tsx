@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types/api/auth';
 import { EkycVerifyRequest, EkycVerifyResponse } from '../types/ekyc';
 import { authService } from '../services/authService';
+import NotificationTokenService from '../services/NotificationTokenService';
+import PushNotificationHelper from '../utils/PushNotificationHelper';
 
 // SignUpData interface for backward compatibility
 export interface SignUpData {
@@ -347,6 +349,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshAIInsights(),
       ]);
 
+      // Đăng ký FCM token với server sau khi đăng nhập thành công
+      try {
+        await NotificationTokenService.registerTokenAfterLogin();
+      } catch (error) {
+        console.log('Lỗi khi đăng ký FCM token sau đăng nhập:', error);
+        // Không throw error để không ảnh hưởng đến quá trình đăng nhập
+      }
+
       return {
         success: true,
       };
@@ -403,6 +413,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshAIInsights(),
       ]);
 
+      // Đăng ký FCM token với server sau khi đăng ký thành công
+      try {
+        await NotificationTokenService.registerTokenAfterLogin();
+      } catch (error) {
+        console.log('Lỗi khi đăng ký FCM token sau đăng ký:', error);
+        // Không throw error để không ảnh hưởng đến quá trình đăng ký
+      }
+
       return {
         success: true,
       };
@@ -435,6 +453,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
+      // Hủy đăng ký FCM token trước khi đăng xuất
+      try {
+        await NotificationTokenService.unregisterTokenAfterLogout();
+      } catch (error) {
+        console.log('Lỗi khi hủy đăng ký FCM token:', error);
+        // Tiếp tục đăng xuất ngay cả khi hủy FCM token thất bại
+      }
+
       await authService.logout();
       setUser(null);
 
