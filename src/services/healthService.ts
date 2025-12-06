@@ -11,13 +11,17 @@ import api from '../utils/Api';
 
 export interface HealthStatus {
   status: 'healthy' | 'unhealthy' | 'degraded';
-  timestamp: string;
-  services: {
-    api: 'up' | 'down';
-    database: 'up' | 'down';
-    redis?: 'up' | 'down';
-    ai_service?: 'up' | 'down';
+  gateway?: 'healthy' | 'unhealthy' | 'degraded';
+  services?: {
+    environment?: 'healthy' | 'unhealthy' | 'degraded';
+    auth?: 'healthy' | 'unhealthy' | 'degraded';
+    education?: 'healthy' | 'unhealthy' | 'degraded';
+    resource?: 'healthy' | 'unhealthy' | 'degraded';
   };
+  messaging?: {
+    rabbitmq?: 'connected' | 'disconnected';
+  };
+  timestamp?: string;
   version?: string;
   uptime?: number;
 }
@@ -39,9 +43,12 @@ export const healthService = {
       return {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
+        gateway: 'unhealthy',
         services: {
-          api: 'down',
-          database: 'down',
+          environment: 'unhealthy',
+          auth: 'unhealthy',
+          education: 'unhealthy',
+          resource: 'unhealthy',
         },
       };
     }

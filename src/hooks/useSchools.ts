@@ -128,15 +128,28 @@ export const useGreenCourses = (params?: GreenCourseParams) => {
       setError(null);
       console.log('🔄 [useGreenCourses] Fetching courses with params:', params);
       const result = await schoolService.getGreenCourses(params);
-      console.log('✅ [useGreenCourses] Success! Received', result.data.length, '/', result.total, 'courses');
-      console.log('📚 [useGreenCourses] Courses:', result.data.map(c => ({
+
+      let courses = [];
+      let totalCount = 0;
+
+      if (Array.isArray(result)) {
+        courses = result;
+        totalCount = result.length;
+      } else if (result && result.data && Array.isArray(result.data)) {
+        courses = result.data;
+        totalCount = result.total || result.data.length;
+      }
+
+      console.log('✅ [useGreenCourses] Success! Received', courses.length, 'courses');
+      console.log('📚 [useGreenCourses] Courses:', courses.map(c => ({
         id: c.id,
         title: c.title,
         category: c.category,
         difficulty: c.difficulty
       })));
-      setData(result.data);
-      setTotal(result.total);
+
+      setData(courses);
+      setTotal(totalCount);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách khóa học');
       console.error('❌ [useGreenCourses] Error:', err);

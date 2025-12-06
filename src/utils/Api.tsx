@@ -70,7 +70,7 @@ const getCurrentLocation = (): Promise<LocationData | null> => {
         };
         cachedLocation = location;
         locationCacheTime = now;
-        
+
         resolve(location);
       },
       (error) => {
@@ -78,10 +78,10 @@ const getCurrentLocation = (): Promise<LocationData | null> => {
           lat: 16.068882,
           long: 108.245350,
         };
-        
+
         cachedLocation = defaultLocation;
         locationCacheTime = now;
-        
+
         resolve(defaultLocation);
       },
       {
@@ -113,14 +113,13 @@ const api = axios.create({
 
 api.interceptors.request.use(async (config) => {
   const token = await getToken();
-  console.log('language', i18n.language);
   config.headers['x-Language'] = i18n.language || 'vi';
 
   if (token) {
     console.log('token', token);
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
+
   getCurrentLocation().then((location) => {
     if (location) {
       config.headers['x-location'] = JSON.stringify(location);
@@ -152,14 +151,14 @@ api.interceptors.response.use(
   },
   async (error: any) => {
     const config = error.config;
-    
+
     config.retryCount = config.retryCount || 0;
-    
+
     if (shouldRetry(error, config.retryCount)) {
       config.retryCount += 1;
       const delayMs = Math.min(1000 * (2 ** config.retryCount), 10000);
       await new Promise<void>(resolve => setTimeout(resolve, delayMs));
-      
+
       return api(config);
     }
 

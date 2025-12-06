@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
-  Image, 
-  StatusBar, 
-  RefreshControl, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  StatusBar,
+  RefreshControl,
   ActivityIndicator,
   Animated,
   Platform,
@@ -30,7 +30,7 @@ import { AlertService } from '../services/AlertService';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
-  const { user, signOut } = useAuth();
+  const { user, signOut, getCurrentUser } = useAuth();
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,18 +39,35 @@ const ProfileScreen = () => {
   const slideAnim = useRef(new Animated.Value(500)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
+  // Fetch profile on mount
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      await getCurrentUser();
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      AlertService.error('Lỗi', 'Không thể tải thông tin tài khoản');
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       setLoading(false);
     }, [])
   );
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    // TODO: Fetch profile data
-    setTimeout(() => {
+    try {
+      await getCurrentUser();
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+    } finally {
       setRefreshing(false);
-    }, 1000);
+    }
   };
 
   const menuItems = [

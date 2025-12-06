@@ -31,21 +31,18 @@ export interface School {
 }
 
 export interface GreenCourse {
-  id: number;
+  id: string; // UUID
   title: string;
   description: string;
-  category: 'climate_change' | 'renewable_energy' | 'sustainability' | 'environmental_science' | 'other';
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  duration_hours: number;
-  lessons_count: number;
-  icon: string;
-  color: string;
-  thumbnail?: string;
-  instructor?: string;
-  rating?: number;
-  enrolled_count?: number;
-  created_at: string;
-  updated_at: string;
+  category: string;
+  duration_weeks?: number;
+  max_students?: number;
+  syllabus?: any | null;
+  meta_data?: any | null;
+  is_public?: boolean;
+  school_id?: string;
+  created_at?: string;
+  updated_at?: string | null;
 }
 
 export interface SchoolParams {
@@ -66,8 +63,7 @@ export interface NearbySchoolParams {
 export interface GreenCourseParams {
   skip?: number;
   limit?: number;
-  category?: GreenCourse['category'];
-  difficulty?: GreenCourse['difficulty'];
+  category?: string;
 }
 
 // ============================================================================
@@ -95,7 +91,10 @@ export const schoolService = {
       });
 
       if (response.data.success && response.data.data) {
-        return response.data.data;
+        return {
+          data: response.data.data.items,
+          total: response.data.data.total,
+        };
       }
 
       throw new Error('Không thể lấy danh sách trường học');
@@ -155,51 +154,49 @@ export const schoolService = {
   /**
    * Lấy danh sách khóa học môi trường
    */
-  getGreenCourses: async (params?: GreenCourseParams): Promise<{ data: GreenCourse[]; total: number }> => {
+  getGreenCourses: async (params?: GreenCourseParams): Promise<GreenCourse[]> => {
     try {
       const requestParams = {
         skip: params?.skip || 0,
         limit: params?.limit || 10,
         category: params?.category,
-        difficulty: params?.difficulty,
       };
       console.log('🌐 [API] GET /green-courses', requestParams);
-      
-      const response = await api.get<ApiResponse<{ items: GreenCourse[]; total: number }>>('/green-courses', {
+
+      // API trả về array trực tiếp (không có wrapper)
+      const response = await api.get<GreenCourse[]>('/green-courses', {
         params: requestParams,
       });
 
       console.log('📥 [API] Response:', {
         status: response.status,
-        success: response.data.success,
-        total: response.data.data?.total || 0,
-        itemsCount: response.data.data?.items?.length || 0
+        coursesCount: response.data?.length || 0
       });
 
-      if (response.data.success && response.data.data) {
-        console.log('✅ [API] Green courses received:', response.data.data.items.map(c => ({
+      if (response.data) {
+        console.log('✅ [API] Green courses received:', response.data.map(c => ({
           id: c.id,
           title: c.title,
           category: c.category
         })));
-        return response.data.data;
+        return response.data;
       }
 
-      throw new Error('Không thể lấy danh sách khóa học');
+      return [];
     } catch (error: any) {
       console.error('❌ [API] Get green courses error:', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status
       });
-      throw error;
+      return [];
     }
   },
 
   /**
    * Lấy chi tiết khóa học
    */
-  getGreenCourseById: async (id: number): Promise<GreenCourse> => {
+  getGreenCourseById: async (id: string): Promise<GreenCourse> => {
     try {
       const response = await api.get<ApiResponse<GreenCourse>>(`/green-courses/${id}`);
 
@@ -217,7 +214,7 @@ export const schoolService = {
   /**
    * Đăng ký khóa học
    */
-  enrollCourse: async (courseId: number): Promise<void> => {
+  enrollCourse: async (courseId: string): Promise<void> => {
     try {
       await api.post(`/green-courses/${courseId}/enroll`);
     } catch (error) {
@@ -229,7 +226,7 @@ export const schoolService = {
   /**
    * Lấy tiến độ học tập của khóa học
    */
-  getCourseProgress: async (courseId: number): Promise<{ progress: number; completed_lessons: number[] }> => {
+  getCourseProgress: async (courseId: string): Promise<{ progress: number; completed_lessons: number[] }> => {
     try {
       const response = await api.get<ApiResponse<{ progress: number; completed_lessons: number[] }>>(
         `/green-courses/${courseId}/progress`

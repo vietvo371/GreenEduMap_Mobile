@@ -5,7 +5,7 @@ import Toast from "react-native-toast-message";
 
 export const saveToken = async (token: string) => {
     try {
-        await AsyncStorage.setItem('token', token);
+        await AsyncStorage.setItem('@auth_token', token);
         console.log('Token saved successfully');
     } catch (error) {
         console.error('Error saving token:', error);
@@ -15,7 +15,7 @@ export const saveToken = async (token: string) => {
 
 export const getToken = async () => {
     try {
-        return await AsyncStorage.getItem('token');
+        return await AsyncStorage.getItem('@auth_token');
     } catch (error) {
         console.error('Error getting token:', error);
         return null;
@@ -24,7 +24,7 @@ export const getToken = async () => {
 
 export const removeToken = async () => {
     try {
-        await AsyncStorage.removeItem('token');
+        await AsyncStorage.removeItem('@auth_token');
         console.log('Token removed successfully');
     } catch (error) {
         console.error('Error removing token:', error);

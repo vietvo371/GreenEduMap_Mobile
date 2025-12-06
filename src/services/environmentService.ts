@@ -29,25 +29,26 @@ export interface AirQualityData {
 }
 
 export interface WeatherData {
-  id: number;
-  city: string;
-  location: string;
-  latitude: number;
-  longitude: number;
+  id: string;
+  location: {
+    type: string;
+    coordinates: [number, number];
+  };
+  city_name: string;
   temperature: number;
   feels_like: number;
-  temp_min: number;
-  temp_max: number;
   humidity: number;
   pressure: number;
-  wind_speed: number;
-  wind_deg: number;
-  clouds: number;
-  visibility: number;
-  weather_main: string;
-  weather_description: string;
-  weather_icon: string;
-  timestamp: string;
+  wind: {
+    speed: number;
+    direction: number;
+  };
+  weather: {
+    main: string;
+    description: string;
+    icon: string;
+  };
+  observation_time: string;
   source: string;
 }
 
@@ -104,7 +105,10 @@ export const environmentService = {
       });
 
       if (response.data.success && response.data.data) {
-        return response.data.data;
+        return {
+          data: response.data.data.items,
+          total: response.data.data.total,
+        };
       }
 
       throw new Error('Không thể lấy dữ liệu chất lượng không khí');
@@ -120,29 +124,30 @@ export const environmentService = {
   getLatestAirQuality: async (limit: number = 10): Promise<AirQualityData[]> => {
     try {
       console.log('🌐 [API] GET /air-quality/latest', { limit });
-      const response = await api.get<ApiResponse<AirQualityData[]>>('/air-quality/latest', {
+      const response = await api.get<ApiResponse<{ total: number; data: AirQualityData[] }>>('/air-quality/latest', {
         params: { limit },
       });
 
       console.log('📥 [API] Response:', {
         status: response.status,
         success: response.data.success,
-        dataLength: response.data.data?.length || 0
+        total: response.data.data?.total || 0,
+        dataLength: response.data.data?.data?.length || 0
       });
 
-      if (response.data.success && response.data.data) {
-        console.log('✅ [API] Latest AQI data received:', response.data.data);
-        return response.data.data;
+      if (response.data.success && response.data.data && response.data.data.data) {
+        console.log('✅ [API] Latest AQI data received:', response.data.data.data);
+        return response.data.data.data;
       }
 
-      throw new Error('Không thể lấy dữ liệu AQI mới nhất');
+      return [];
     } catch (error: any) {
       console.error('❌ [API] Get latest air quality error:', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status
       });
-      throw error;
+      return [];
     }
   },
 
@@ -182,7 +187,10 @@ export const environmentService = {
       });
 
       if (response.data.success && response.data.data) {
-        return response.data.data;
+        return {
+          data: response.data.data.items,
+          total: response.data.data.total,
+        };
       }
 
       throw new Error('Không thể lấy dữ liệu thời tiết');
@@ -249,24 +257,24 @@ export const environmentService = {
   getPublicCurrentWeather: async (lat: number, lon: number): Promise<WeatherData | null> => {
     try {
       console.log('🌐 [API] GET /open-data/weather/current', { lat, lon });
-      const response = await api.get<ApiResponse<WeatherData>>('/open-data/weather/current', {
+      // API trả về data trực tiếp (không có wrapper ApiResponse)
+      const response = await api.get<WeatherData>('/open-data/weather/current', {
         params: { lat, lon },
       });
 
       console.log('📥 [API] Response:', {
         status: response.status,
-        success: response.data.success,
-        hasData: !!response.data.data
+        hasData: !!response.data
       });
 
-      if (response.data.success && response.data.data) {
+      if (response.data) {
         console.log('✅ [API] Public weather data:', {
-          location: response.data.data.location,
-          temp: response.data.data.temperature,
-          humidity: response.data.data.humidity,
-          weather: response.data.data.weather_main
+          location: response.data.location,
+          temp: response.data.temperature,
+          humidity: response.data.humidity,
+          weather: response.data.weather
         });
-        return response.data.data;
+        return response.data;
       }
 
       return null;
@@ -285,12 +293,25 @@ export const environmentService = {
    */
   getWeatherForecast: async (lat: number, lon: number): Promise<WeatherForecast[]> => {
     try {
-      const response = await api.get<ApiResponse<WeatherForecast[]>>('/open-data/weather/forecast', {
+      // API trả về full OpenWeather response structure
+      const response = await api.get<any>('/open-data/weather/forecast', {
         params: { lat, lon },
       });
 
-      if (response.data.success && response.data.data) {
-        return response.data.data;
+      if (response.data && response.data.list) {
+        // Transform OpenWeather format to our WeatherForecast format
+        const forecastData: WeatherForecast[] = response.data.list.map((item: any) => ({
+          date: item.dt_txt,
+          temp_min: item.main.temp_min,
+          temp_max: item.main.temp_max,
+          humidity: item.main.humidity,
+          weather_main: item.weather[0].main,
+          weather_description: item.weather[0].description,
+          weather_icon: item.weather[0].icon,
+          pop: item.pop || 0,
+          wind_speed: item.wind.speed,
+        }));
+        return forecastData;
       }
 
       return [];

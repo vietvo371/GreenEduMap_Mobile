@@ -29,7 +29,7 @@ const HomeScreen = () => {
 
   // Fetch real AQI data
   const { data: aqiData, loading: aqiLoading, refetch: refetchAQI } = useLatestAirQuality(1);
-  
+
   // Fetch real weather data
   const { data: weatherData, loading: weatherLoading, refetch: refetchWeather } = usePublicCurrentWeather(
     currentLocation?.lat || null,
@@ -75,9 +75,10 @@ const HomeScreen = () => {
   useEffect(() => {
     if (weatherData) {
       console.log('🌤️ [HomeScreen] Weather Data updated:', {
-        location: weatherData.location,
+        city: weatherData.city_name,
         temp: weatherData.temperature,
-        humidity: weatherData.humidity
+        humidity: weatherData.humidity,
+        weather: weatherData.weather
       });
     }
   }, [weatherData]);
@@ -296,7 +297,7 @@ const HomeScreen = () => {
               <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
           ) : currentAQI ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.dataCard}
               onPress={() => navigation.navigate('MainTabs', { screen: 'Map' } as any)}
               activeOpacity={0.7}
@@ -336,7 +337,7 @@ const HomeScreen = () => {
               <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
           ) : weatherData ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.dataCard}
               onPress={() => navigation.navigate('MainTabs', { screen: 'Map' } as any)}
               activeOpacity={0.7}
@@ -344,14 +345,16 @@ const HomeScreen = () => {
               <View style={styles.dataCardHeader}>
                 <Icon name="weather-cloudy" size={ICON_SIZE.lg} color={theme.colors.info} />
                 <View style={styles.dataCardInfo}>
-                  <Text style={styles.dataCardLocation}>{weatherData.location}</Text>
-                  <Text style={styles.dataCardCity}>{weatherData.city}</Text>
+                  <Text style={styles.dataCardLocation}>{weatherData.city_name}</Text>
+                  <Text style={styles.dataCardCity}>
+                    {weatherData.location.coordinates[1].toFixed(2)}, {weatherData.location.coordinates[0].toFixed(2)}
+                  </Text>
                 </View>
               </View>
               <View style={styles.weatherContainer}>
                 <View style={styles.weatherMain}>
                   <Text style={styles.weatherTemp}>{Math.round(weatherData.temperature)}°C</Text>
-                  <Text style={styles.weatherDescription}>{weatherData.weather_description}</Text>
+                  <Text style={styles.weatherDescription}>{weatherData.weather.description}</Text>
                 </View>
                 <View style={styles.weatherDetails}>
                   <View style={styles.weatherDetailItem}>
@@ -360,7 +363,7 @@ const HomeScreen = () => {
                   </View>
                   <View style={styles.weatherDetailItem}>
                     <Icon name="weather-windy" size={ICON_SIZE.sm} color={theme.colors.textLight} />
-                    <Text style={styles.weatherDetailText}>{weatherData.wind_speed} m/s</Text>
+                    <Text style={styles.weatherDetailText}>{weatherData.wind.speed} m/s</Text>
                   </View>
                 </View>
               </View>

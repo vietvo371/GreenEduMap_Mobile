@@ -72,14 +72,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     try {
       // Call signIn from AuthContext with email and password
       const result = await signIn({
-        email: email,
+        email: email.trim(),
         password: password,
       });
 
       if (result.success) {
-        console.log('Login successful:', result);
+        console.log('✅ Login successful');
         // Login successful - navigate to main tabs
-        navigation.navigate('MainTabs');
+        // Small delay to let user see success state
+        setTimeout(() => {
+          navigation.navigate('MainTabs');
+        }, 300);
       } else {
         // Handle errors
         if (result.errors) {
@@ -90,13 +93,34 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             'Đăng nhập thất bại',
             result.error
           );
+        } else {
+          AlertService.error(
+            'Đăng nhập thất bại',
+            'Vui lòng kiểm tra lại email và mật khẩu'
+          );
         }
       }
     } catch (error: any) {
-      console.log('Login error:', error);
+      console.log('❌ Login error:', error);
+
+      // More specific error messages
+      let errorMessage = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+
+      if (error.response?.status === 401) {
+        errorMessage = 'Email hoặc mật khẩu không đúng';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Tài khoản của bạn đã bị khóa';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Không tìm thấy tài khoản với email này';
+      } else if (error.message === 'Network Error') {
+        errorMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       AlertService.error(
         'Đăng nhập thất bại',
-        error.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.'
+        errorMessage
       );
     } finally {
       setLoading(false);
@@ -180,26 +204,26 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             style={styles.formContainer}
             entering={SlideInDown.duration(800).delay(800).springify()}
           >
-             <View style={styles.formHeader}>
+            <View style={styles.formHeader}>
               <Text style={styles.formTitle}>Đăng nhập</Text>
               <Text style={styles.formSubtitle}>
                 Đăng nhập để báo cáo và theo dõi sự cố đô thị
               </Text>
             </View>
 
-              <View style={styles.form}>
-                <InputCustom
-                  label="Email"
-                  placeholder="Nhập địa chỉ email"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  error={errors.email}
-                  required
-                  leftIcon="email-outline"
-                  containerStyle={styles.input}
-                />
+            <View style={styles.form}>
+              <InputCustom
+                label="Email"
+                placeholder="Nhập địa chỉ email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                error={errors.email}
+                required
+                leftIcon="email-outline"
+                containerStyle={styles.input}
+              />
               <InputCustom
                 label="Mật khẩu"
                 placeholder="Nhập mật khẩu"
@@ -308,7 +332,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
       <LoadingOverlay
         visible={loading}
-        message="Đang đăng nhập..."
+        message="Đang đăng nhập và tải thông tin..."
       />
     </SafeAreaView>
   );

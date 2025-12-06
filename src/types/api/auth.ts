@@ -3,13 +3,16 @@ import { ApiResponse } from './common';
 export type UserRole = 'student' | 'teacher' | 'parent' | 'researcher' | 'admin' | 'verifier';
 
 export interface User {
-    id: number;
+    id: string; // UUID
     username?: string;
     email: string;
     full_name: string;
     phone?: string;
     avatar?: string | null;
-    role?: UserRole;
+    role?: string;
+    is_active?: boolean;
+    is_verified?: boolean;
+    is_public?: boolean;
     email_verified?: boolean;
     phone_verified?: boolean;
     ekyc_verified?: boolean;
@@ -19,13 +22,14 @@ export interface User {
     badge_level_text?: string;
     created_at: string;
     updated_at?: string;
+    last_login?: string;
 }
 
 export interface LoginResponse {
-    user: User;
     access_token: string;
     refresh_token: string;
     token_type: string;
+    expires_in: number;
 }
 
 export interface LoginRequest {

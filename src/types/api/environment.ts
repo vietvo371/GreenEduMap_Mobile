@@ -36,25 +36,26 @@ export interface AirQualityParams {
 // ============================================================================
 
 export interface WeatherData {
-  id: number;
-  city: string;
-  location: string;
-  latitude: number;
-  longitude: number;
+  id: string;
+  location: {
+    type: string;
+    coordinates: [number, number];
+  };
+  city_name: string;
   temperature: number;
   feels_like: number;
-  temp_min: number;
-  temp_max: number;
   humidity: number;
   pressure: number;
-  wind_speed: number;
-  wind_deg: number;
-  clouds: number;
-  visibility: number;
-  weather_main: string;
-  weather_description: string;
-  weather_icon: string;
-  timestamp: string;
+  wind: {
+    speed: number;
+    direction: number;
+  };
+  weather: {
+    main: string;
+    description: string;
+    icon: string;
+  };
+  observation_time: string;
   source: string;
 }
 
@@ -107,22 +108,24 @@ export interface School {
 }
 
 export interface GreenCourse {
-  id: number;
+  id: string; // UUID
   title: string;
   description: string;
-  category: 'climate_change' | 'renewable_energy' | 'sustainability' | 'environmental_science' | 'other';
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  duration_hours: number;
-  lessons_count: number;
-  icon: string;
-  color: string;
-  thumbnail?: string;
-  instructor?: string;
-  rating?: number;
-  enrolled_count?: number;
+  category: 'climate_change' | 'renewable_energy' | 'sustainability' | 'environmental_science' | 'other' | string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  duration_weeks?: number;
+  duration_hours?: number;
+  lessons_count?: number;
+  color?: string;
+  icon?: string;
+  max_students?: number;
+  syllabus?: any | null;
+  meta_data?: any | null;
+  is_public?: boolean;
+  school_id?: string;
+  created_at?: string;
+  updated_at?: string | null;
   progress?: number; // User's progress (0-100)
-  created_at: string;
-  updated_at: string;
 }
 
 export interface SchoolParams {
@@ -143,8 +146,8 @@ export interface NearbySchoolParams {
 export interface GreenCourseParams {
   skip?: number;
   limit?: number;
-  category?: GreenCourse['category'];
-  difficulty?: GreenCourse['difficulty'];
+  category?: string;
+  difficulty?: string;
 }
 
 // ============================================================================
@@ -152,22 +155,29 @@ export interface GreenCourseParams {
 // ============================================================================
 
 export interface GreenZone {
-  id: number;
+  id: string; // UUID
   name: string;
+  code?: string;
   zone_type: 'park' | 'forest' | 'garden' | 'botanical' | 'wetland' | 'reserve' | 'other';
-  district: string;
-  city: string;
-  address: string;
   latitude: number;
   longitude: number;
-  area: number; // m²
+  address?: string;
+  area_sqm?: number;
   tree_count?: number;
+  vegetation_coverage?: number;
+  maintained_by?: string;
+  phone?: string | null;
+  is_public?: boolean;
+  data_uri?: string | null;
+  facilities?: any | null;
+  meta_data?: any | null;
   description?: string;
-  facilities?: string[];
   opening_hours?: string;
   entry_fee?: number;
   image_url?: string;
   distance?: number; // km (when using nearby endpoint)
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface GreenResource {
@@ -192,8 +202,6 @@ export interface GreenZoneParams {
   skip?: number;
   limit?: number;
   zone_type?: GreenZone['zone_type'];
-  city?: string;
-  district?: string;
 }
 
 export interface GreenResourceParams {

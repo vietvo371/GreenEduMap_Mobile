@@ -17,7 +17,7 @@ export const authService = {
             const response = await api.post<LoginResponse>('/auth/login', credentials);
 
             const data = response.data;
-            
+
             // Lưu tokens và user data
             if (data.access_token) {
                 await AsyncStorage.setItem(TOKEN_KEY, data.access_token);
@@ -42,7 +42,7 @@ export const authService = {
             const response = await api.post<LoginResponse>('/auth/register', data);
 
             const responseData = response.data;
-            
+
             // Lưu tokens và user data
             if (responseData.access_token) {
                 await AsyncStorage.setItem(TOKEN_KEY, responseData.access_token);
@@ -76,10 +76,12 @@ export const authService = {
     // ============================================================================
 
     getProfile: async (): Promise<User> => {
-        const response = await api.get<ApiResponse<User>>('/auth/me');
-        if (response.data.success && response.data.data) {
-            return response.data.data;
+        const response = await api.get<User>('/auth/me');
+        if (response.data) {
+            return response.data;
         }
+        // API trả về user data trực tiếp (không có wrapper ApiResponse)
+
         throw new Error('Không thể lấy thông tin người dùng');
     },
 
@@ -122,7 +124,7 @@ export const authService = {
         });
 
         const data = response.data;
-        
+
         if (data.access_token) {
             await AsyncStorage.setItem(TOKEN_KEY, data.access_token);
             if (data.refresh_token) {
