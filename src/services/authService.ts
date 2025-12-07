@@ -174,7 +174,7 @@ export const authService = {
     // ============================================================================
 
     updateFcmToken: async (pushToken: string): Promise<void> => {
-        await api.post('/auth/update-fcm-token', { push_token: pushToken });
+        await api.post('/auth/update-fcm-token', { fcm_token: pushToken });
     },
 };
 

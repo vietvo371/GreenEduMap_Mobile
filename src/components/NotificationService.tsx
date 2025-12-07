@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Alert, Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
+import { authService } from '../services/authService';
 
 interface NotificationServiceProps {
   onNotification?: (notification: any) => void;
@@ -40,8 +41,7 @@ const NotificationService: React.FC<NotificationServiceProps> = ({
       
       const token = await messaging().getToken();
       console.log('FCM Token:', token);
-      // Tại đây bạn có thể gửi token lên server
-      // Ví dụ: await updateFCMToken(token);
+      await authService.updateFcmToken(token);
     } catch (error) {
       console.error('Lỗi khi lấy FCM token:', error);
     }
