@@ -51,6 +51,8 @@ import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import UpdatePasswordScreen from '../screens/UpdatePasswordScreen';
 import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 import PhoneVerificationScreen from '../screens/PhoneVerificationScreen';
+import CourseDetailScreen from '../screens/CourseDetailScreen';
+
 
 
 
@@ -102,10 +104,10 @@ const MainTabs = () => {
         options={{
           title: t('tabs.home'),
           tabBarIcon: ({ color, focused }) => (
-            <Icon 
-              name="home-variant" 
-              size={focused ? ICON_SIZE.lg : ICON_SIZE.md} 
-              color={color} 
+            <Icon
+              name="home-variant"
+              size={focused ? ICON_SIZE.lg : ICON_SIZE.md}
+              color={color}
             />
           ),
         }}
@@ -118,10 +120,10 @@ const MainTabs = () => {
         options={{
           title: t('tabs.map'),
           tabBarIcon: ({ color, focused }) => (
-            <Icon 
-              name="map-marker-radius" 
-              size={focused ? ICON_SIZE.lg : ICON_SIZE.md} 
-              color={color} 
+            <Icon
+              name="map-marker-radius"
+              size={focused ? ICON_SIZE.lg : ICON_SIZE.md}
+              color={color}
             />
           ),
         }}
@@ -134,10 +136,10 @@ const MainTabs = () => {
         options={{
           title: t('tabs.learn'),
           tabBarIcon: ({ color, focused }) => (
-            <Icon 
-              name="book-open-variant" 
-              size={focused ? ICON_SIZE.lg : ICON_SIZE.md} 
-              color={color} 
+            <Icon
+              name="book-open-variant"
+              size={focused ? ICON_SIZE.lg : ICON_SIZE.md}
+              color={color}
             />
           ),
         }}
@@ -150,10 +152,10 @@ const MainTabs = () => {
         options={{
           title: t('tabs.actions'),
           tabBarIcon: ({ color, focused }) => (
-            <Icon 
-              name="leaf" 
-              size={focused ? ICON_SIZE.lg : ICON_SIZE.md} 
-              color={color} 
+            <Icon
+              name="leaf"
+              size={focused ? ICON_SIZE.lg : ICON_SIZE.md}
+              color={color}
             />
           ),
         }}
@@ -166,10 +168,10 @@ const MainTabs = () => {
         options={{
           title: t('tabs.profile'),
           tabBarIcon: ({ color, focused }) => (
-            <Icon 
-              name="account" 
-              size={focused ? ICON_SIZE.lg : ICON_SIZE.md} 
-              color={color} 
+            <Icon
+              name="account"
+              size={focused ? ICON_SIZE.lg : ICON_SIZE.md}
+              color={color}
             />
           ),
         }}
@@ -235,7 +237,7 @@ const MainNavigator = () => {
       {/* <Stack.Screen name="AddMonitoringLocation" component={AddMonitoringLocationScreen} /> */}
 
       {/* Learning & Education */}
-      {/* <Stack.Screen name="CourseDetail" component={CourseDetailScreen} /> */}
+      <Stack.Screen name="CourseDetail" component={CourseDetailScreen} />
       {/* <Stack.Screen name="LessonViewer" component={LessonViewerScreen} /> */}
       {/* <Stack.Screen name="Quiz" component={QuizScreen} /> */}
       {/* <Stack.Screen name="QuizResult" component={QuizResultScreen} /> */}

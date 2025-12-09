@@ -68,6 +68,15 @@ const MapScreen: StackScreen<'Map'> = ({ navigation }) => {
   const slideAnim = useRef(new Animated.Value(500)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
+  // Layer Controls Modal state
+  const [showLayerControls, setShowLayerControls] = useState(false);
+  const layerControlsSlideAnim = useRef(new Animated.Value(500)).current;
+  const layerControlsBackdropAnim = useRef(new Animated.Value(0)).current;
+
+  // Heatmap & Display mode state
+  const [heatmapLayer, setHeatmapLayer] = useState<'aqi' | 'temperature'>('aqi');
+  const [displayMode, setDisplayMode] = useState<'heatmap' | 'icons'>('heatmap');
+
   // Icon layers visibility
   const [showIconLayers, setShowIconLayers] = useState({
     schools: true,
@@ -225,6 +234,46 @@ const MapScreen: StackScreen<'Map'> = ({ navigation }) => {
       ]).start();
     }
   }, [selectedDetail]);
+
+  // Layer Controls Modal animation
+  useEffect(() => {
+    if (showLayerControls) {
+      Animated.parallel([
+        Animated.spring(layerControlsSlideAnim, {
+          toValue: 0,
+          tension: 65,
+          friction: 11,
+          useNativeDriver: true,
+        }),
+        Animated.timing(layerControlsBackdropAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [showLayerControls]);
+
+  const toggleLayerControls = () => {
+    setShowLayerControls(!showLayerControls);
+  };
+
+  const handleCloseLayerControls = () => {
+    Animated.parallel([
+      Animated.timing(layerControlsSlideAnim, {
+        toValue: 500,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(layerControlsBackdropAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowLayerControls(false);
+    });
+  };
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -587,8 +636,8 @@ const MapScreen: StackScreen<'Map'> = ({ navigation }) => {
           minDisplacement={10}
         />
 
-        {/* AQI Markers */}
-        {selectedDataLayer === 'airQuality' && aqiData && (
+        {/* AQI Markers - Show when in heatmap mode */}
+        {selectedDataLayer === 'airQuality' && displayMode === 'heatmap' && aqiData && (
           <MapboxGL.ShapeSource
             id="aqiSource"
             cluster={true}
@@ -662,8 +711,8 @@ const MapScreen: StackScreen<'Map'> = ({ navigation }) => {
           </MapboxGL.ShapeSource>
         )}
 
-        {/* Green Zones Markers */}
-        {selectedDataLayer === 'greenZones' && showIconLayers.greenZones && greenZones && (
+        {/* Green Zones Markers - Show when in icons mode */}
+        {selectedDataLayer === 'greenZones' && displayMode === 'icons' && showIconLayers.greenZones && greenZones && (
           <MapboxGL.ShapeSource
             id="greenZonesSource"
             shape={{
@@ -697,8 +746,8 @@ const MapScreen: StackScreen<'Map'> = ({ navigation }) => {
           </MapboxGL.ShapeSource>
         )}
 
-        {/* Schools Markers */}
-        {showIconLayers.schools && nearbySchools && (
+        {/* Schools Markers - Show when in icons mode */}
+        {displayMode === 'icons' && showIconLayers.schools && nearbySchools && (
           <MapboxGL.ShapeSource
             id="schoolsSource"
             shape={{
@@ -799,6 +848,188 @@ const MapScreen: StackScreen<'Map'> = ({ navigation }) => {
           </Animated.View>
         </>
       )}
+
+      {/* Layer Controls Bottom Sheet Modal */}
+      {showLayerControls && (
+        <>
+          <Animated.View style={[styles.backdrop, { opacity: layerControlsBackdropAnim }]}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={handleCloseLayerControls} />
+          </Animated.View>
+
+          <Animated.View style={[styles.layerControlsSheet, { transform: [{ translateY: layerControlsSlideAnim }] }]}>
+            <View style={styles.sheetHandle} />
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.layerControlsContent}>
+              <View style={styles.layerControlsHeader}>
+                <Text style={styles.layerControlsTitle}>Lớp dữ liệu</Text>
+                <TouchableOpacity onPress={handleCloseLayerControls}>
+                  <Icon name="close" size={ICON_SIZE.md} color={theme.colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Heatmap Layer Selection */}
+              <View style={styles.controlSection}>
+                <Text style={styles.controlSectionTitle}>HEATMAP</Text>
+                <TouchableOpacity
+                  style={styles.radioOption}
+                  onPress={() => {
+                    setHeatmapLayer('aqi');
+                    setDisplayMode('heatmap');
+                  }}
+                >
+                  <View style={[styles.radio, heatmapLayer === 'aqi' && displayMode === 'heatmap' && styles.radioActive]}>
+                    {heatmapLayer === 'aqi' && displayMode === 'heatmap' && <View style={styles.radioDot} />}
+                  </View>
+                  <Text style={styles.radioLabel}>AQI (Chất lượng không khí)</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.radioOption}
+                  onPress={() => {
+                    setHeatmapLayer('temperature');
+                    setDisplayMode('heatmap');
+                  }}
+                >
+                  <View style={[styles.radio, heatmapLayer === 'temperature' && displayMode === 'heatmap' && styles.radioActive]}>
+                    {heatmapLayer === 'temperature' && displayMode === 'heatmap' && <View style={styles.radioDot} />}
+                  </View>
+                  <Text style={styles.radioLabel}>Nhiệt độ</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Icon Layers */}
+              <View style={styles.controlSection}>
+                <Text style={styles.controlSectionTitle}>ICON LAYERS</Text>
+                <TouchableOpacity
+                  style={styles.checkboxOption}
+                  onPress={() => {
+                    setShowIconLayers(prev => ({ ...prev, greenZones: !prev.greenZones }));
+                    setDisplayMode('icons');
+                  }}
+                >
+                  <View style={[styles.checkbox, showIconLayers.greenZones && styles.checkboxActive]}>
+                    {showIconLayers.greenZones && <Icon name="check" size={14} color="#FFF" />}
+                  </View>
+                  <Text style={styles.checkboxLabel}>Cây xanh</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.checkboxOption}
+                  onPress={() => {
+                    setShowIconLayers(prev => ({ ...prev, schools: !prev.schools }));
+                    setDisplayMode('icons');
+                  }}
+                >
+                  <View style={[styles.checkbox, showIconLayers.schools && styles.checkboxActive]}>
+                    {showIconLayers.schools && <Icon name="check" size={14} color="#FFF" />}
+                  </View>
+                  <Text style={styles.checkboxLabel}>Trường học</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Legend */}
+              <View style={styles.legendContainer}>
+                <Text style={styles.legendTitle}>
+                  Thang màu {heatmapLayer === 'aqi' ? 'AQI' : 'Nhiệt độ'}
+                </Text>
+                <View style={styles.legendGradient}>
+                  <View
+                    style={[
+                      styles.gradientBar,
+                      {
+                        backgroundColor:
+                          heatmapLayer === 'aqi'
+                            ? '#22c55e'
+                            : '#3b82f6',
+                      },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.gradientBar,
+                      {
+                        backgroundColor:
+                          heatmapLayer === 'aqi'
+                            ? '#eab308'
+                            : '#fbbf24',
+                      },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.gradientBar,
+                      {
+                        backgroundColor:
+                          heatmapLayer === 'aqi'
+                            ? '#f97316'
+                            : '#ef4444',
+                      },
+                    ]}
+                  />
+                  {heatmapLayer === 'aqi' && (
+                    <>
+                      <View style={[styles.gradientBar, { backgroundColor: '#ef4444' }]} />
+                      <View style={[styles.gradientBar, { backgroundColor: '#a855f7' }]} />
+                    </>
+                  )}
+                </View>
+                <View style={styles.legendLabels}>
+                  {heatmapLayer === 'aqi' ? (
+                    <>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
+                        <Text style={styles.legendText}>Tốt (0-50)</Text>
+                      </View>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: '#eab308' }]} />
+                        <Text style={styles.legendText}>TB (51-100)</Text>
+                      </View>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: '#f97316' }]} />
+                        <Text style={styles.legendText}>Kém (101-150)</Text>
+                      </View>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+                        <Text style={styles.legendText}>Xấu (151-200)</Text>
+                      </View>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: '#a855f7' }]} />
+                        <Text style={styles.legendText}>Rất xấu (&gt;200)</Text>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: '#3b82f6' }]} />
+                        <Text style={styles.legendText}>Mát (25-28°C)</Text>
+                      </View>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: '#fbbf24' }]} />
+                        <Text style={styles.legendText}>Ấm (29-32°C)</Text>
+                      </View>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+                        <Text style={styles.legendText}>Nóng (&gt;32°C)</Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              </View>
+            </ScrollView>
+          </Animated.View>
+        </>
+      )}
+
+      {/* Layer Controls FAB Button */}
+      <TouchableOpacity
+        style={styles.layerControlsFAB}
+        onPress={toggleLayerControls}
+        activeOpacity={0.8}
+      >
+        <Icon
+          name="layers"
+          size={ICON_SIZE.lg}
+          color={theme.colors.white}
+        />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -1129,6 +1360,160 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.xs,
     color: theme.colors.primary,
     fontWeight: '600',
+  },
+  // Layer Controls Bottom Sheet styles
+  layerControlsSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: hp('70%'),
+    backgroundColor: theme.colors.white,
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    ...theme.shadows.xl,
+    zIndex: 100,
+  },
+  layerControlsContent: {
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xl,
+  },
+  layerControlsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+  },
+  layerControlsTitle: {
+    fontSize: FONT_SIZE.xl,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  controlSection: {
+    marginBottom: SPACING.lg,
+  },
+  controlSectionTitle: {
+    fontSize: FONT_SIZE.xs,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: SPACING.md,
+  },
+  radioOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: theme.colors.backgroundSecondary,
+    marginBottom: SPACING.sm,
+  },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    marginRight: SPACING.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioActive: {
+    borderColor: theme.colors.success,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: theme.colors.success,
+  },
+  radioLabel: {
+    fontSize: FONT_SIZE.md,
+    color: theme.colors.text,
+    fontWeight: '500',
+    flex: 1,
+  },
+  checkboxOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    backgroundColor: theme.colors.backgroundSecondary,
+    marginBottom: SPACING.sm,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    marginRight: SPACING.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: theme.colors.success,
+    borderColor: theme.colors.success,
+  },
+  checkboxLabel: {
+    fontSize: FONT_SIZE.md,
+    color: theme.colors.text,
+    fontWeight: '500',
+    flex: 1,
+  },
+  legendContainer: {
+    backgroundColor: theme.colors.backgroundSecondary,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  legendTitle: {
+    fontSize: FONT_SIZE.sm,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: SPACING.sm,
+  },
+  legendGradient: {
+    flexDirection: 'row',
+    height: 12,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: SPACING.md,
+  },
+  gradientBar: {
+    flex: 1,
+  },
+  legendLabels: {
+    gap: SPACING.xs,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: FONT_SIZE.xs,
+    color: theme.colors.textSecondary,
+  },
+  layerControlsFAB: {
+    position: 'absolute',
+    right: SPACING.md,
+    bottom: 100, // Well above tab bar (tab bar ~60-80px)
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...theme.shadows.xl,
+    zIndex: 999, // Higher z-index to ensure visibility
   },
 });
 

@@ -31,6 +31,8 @@ import { StackScreen } from '../navigation/types';
 import { useAuth } from '../contexts/AuthContext';
 import { theme, SPACING, FONT_SIZE, BORDER_RADIUS, ICON_SIZE } from '../theme';
 import { useNearbyGreenZones } from '../hooks/useGreenResources';
+import { userDataService } from '../services';
+import type { GreenZone } from '../types/api';
 import Geolocation from 'react-native-geolocation-service';
 
 const { width } = Dimensions.get('window');
@@ -88,7 +90,7 @@ const ACTION_CATEGORIES = [
 ];
 
 const ActionsScreen: StackScreen<'Actions'> = ({ navigation }) => {
-  const { environmentalImpact, addGreenAction } = useAuth();
+  const { environmentalImpact, addGreenAction, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
@@ -161,6 +163,16 @@ const ActionsScreen: StackScreen<'Actions'> = ({ navigation }) => {
   };
 
   const handleCategoryPress = async (category: typeof ACTION_CATEGORIES[0]) => {
+    // Log activity (non-blocking)
+    if (user) {
+      userDataService.logActivity({
+        activity_type: 'view_action_category',
+        description: `Viewed ${category.label} action category`,
+        resource_type: 'action_category',
+        resource_id: category.type,
+      }).catch((err: any) => console.log('📊 Activity log failed:', err));
+    }
+
     // Quick add action with default values
     Alert.alert(
       `Ghi nhận hành động ${category.label}`,
@@ -177,6 +189,17 @@ const ActionsScreen: StackScreen<'Actions'> = ({ navigation }) => {
                 description: `Đã hoàn thành hành động ${example.toLowerCase()}`,
                 carbonSaved: Math.random() * 3 + 0.5, // Random 0.5-3.5kg
               });
+
+              // Log action completion
+              if (user) {
+                userDataService.logActivity({
+                  activity_type: 'complete_green_action',
+                  description: `Completed action: ${example}`,
+                  resource_type: 'green_action',
+                  resource_id: category.type,
+                }).catch((err: any) => console.log('📊 Activity log failed:', err));
+              }
+
               Alert.alert('Thành công!', `Đã ghi nhận ${example}!`);
             } catch (error) {
               Alert.alert('Lỗi', 'Không thể ghi nhận hành động');
@@ -198,6 +221,20 @@ const ActionsScreen: StackScreen<'Actions'> = ({ navigation }) => {
   const getActionTypeColor = (type: string): string => {
     const category = ACTION_CATEGORIES.find((c) => c.type === type);
     return category?.color || theme.colors.primary;
+  };
+
+  const handleZoneClick = (zone: GreenZone) => {
+    navigation.navigate('Map');
+
+    // Log activity (non-blocking)
+    if (user) {
+      userDataService.logActivity({
+        activity_type: 'view_green_zone_from_actions',
+        description: `Viewed green zone: ${zone.name}`,
+        resource_type: 'green_zone',
+        resource_id: zone.id,
+      }).catch((err: any) => console.log('📊 Activity log failed:', err));
+    }
   };
 
   return (
@@ -287,7 +324,12 @@ const ActionsScreen: StackScreen<'Actions'> = ({ navigation }) => {
           ) : nearbyZones && nearbyZones.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
               {nearbyZones.map((zone) => (
-                <TouchableOpacity key={zone.id} style={styles.zoneCard} activeOpacity={0.9}>
+                <TouchableOpacity
+                  key={zone.id}
+                  style={styles.zoneCard}
+                  activeOpacity={0.9}
+                  onPress={() => handleZoneClick(zone)}
+                >
                   <ImageBackground
                     source={{ uri: zone.image_url || 'https://images.unsplash.com/photo-1496104679561-38d312563347?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80' }}
                     style={styles.zoneImage}

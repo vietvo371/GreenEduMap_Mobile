@@ -19,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLatestAirQuality, usePublicCurrentWeather } from '../hooks/useEnvironment';
 import { usePublicGreenZones } from '../hooks/useGreenResources';
 import { useGreenCourses } from '../hooks/useSchools';
+import { userDataService } from '../services';
 import Geolocation from 'react-native-geolocation-service';
 import type { GreenZone, GreenCourse } from '../types/api';
 
@@ -123,6 +124,63 @@ const HomeScreen = () => {
     return icons[category] || 'book-open-variant';
   };
 
+  // Activity tracking handlers
+  const handleAQIClick = () => {
+    navigation.navigate('MainTabs', { screen: 'Map' } as any);
+
+    // Log activity (non-blocking)
+    if (currentAQI && user) {
+      userDataService.logActivity({
+        activity_type: 'view_aqi',
+        description: `Viewed AQI data for ${currentAQI.station_name}`,
+        resource_type: 'air_quality',
+        resource_id: currentAQI.id,
+      }).catch((err: any) => console.log('📊 Activity log failed:', err));
+    }
+  };
+
+  const handleWeatherClick = () => {
+    navigation.navigate('MainTabs', { screen: 'Map' } as any);
+
+    // Log activity (non-blocking)
+    if (weatherData && user) {
+      userDataService.logActivity({
+        activity_type: 'view_weather',
+        description: `Viewed weather for ${weatherData.city_name}`,
+        resource_type: 'weather',
+        resource_id: weatherData.id,
+      }).catch((err: any) => console.log('📊 Activity log failed:', err));
+    }
+  };
+
+  const handleGreenZoneClick = (zone: GreenZone) => {
+    navigation.navigate('MainTabs', { screen: 'Map' } as any);
+
+    // Log activity (non-blocking)
+    if (user) {
+      userDataService.logActivity({
+        activity_type: 'view_green_zone',
+        description: `Viewed green zone: ${zone.name}`,
+        resource_type: 'green_zone',
+        resource_id: zone.id,
+      }).catch((err: any) => console.log('📊 Activity log failed:', err));
+    }
+  };
+
+  const handleCourseClick = (course: GreenCourse) => {
+    navigation.navigate('MainTabs', { screen: 'Learn' } as any);
+
+    // Log activity (non-blocking)
+    if (user) {
+      userDataService.logActivity({
+        activity_type: 'view_course',
+        description: `Viewed course: ${course.title}`,
+        resource_type: 'green_course',
+        resource_id: course.id,
+      }).catch((err: any) => console.log('📊 Activity log failed:', err));
+    }
+  };
+
   const currentAQI = aqiData && aqiData.length > 0 ? aqiData[0] : null;
 
   const renderHeader = () => (
@@ -165,7 +223,7 @@ const HomeScreen = () => {
   const renderGreenZoneItem = ({ item }: { item: GreenZone }) => (
     <TouchableOpacity
       style={styles.zoneCard}
-      onPress={() => navigation.navigate('MainTabs', { screen: 'Map' } as any)}
+      onPress={() => handleGreenZoneClick(item)}
       activeOpacity={0.7}
     >
       <View style={[styles.zoneIcon, { backgroundColor: theme.colors.successLight }]}>
@@ -183,7 +241,7 @@ const HomeScreen = () => {
   const renderCourseItem = ({ item }: { item: GreenCourse }) => (
     <TouchableOpacity
       style={styles.courseCard}
-      onPress={() => navigation.navigate('MainTabs', { screen: 'Learn' } as any)}
+      onPress={() => handleCourseClick(item)}
       activeOpacity={0.7}
     >
       <View style={[styles.courseIcon, { backgroundColor: theme.colors.infoLight }]}>
@@ -225,7 +283,7 @@ const HomeScreen = () => {
           ) : currentAQI ? (
             <TouchableOpacity
               style={styles.dataCard}
-              onPress={() => navigation.navigate('MainTabs', { screen: 'Map' } as any)}
+              onPress={handleAQIClick}
               activeOpacity={0.7}
             >
               <View style={styles.dataCardHeader}>
@@ -269,7 +327,7 @@ const HomeScreen = () => {
           ) : weatherData ? (
             <TouchableOpacity
               style={styles.dataCard}
-              onPress={() => navigation.navigate('MainTabs', { screen: 'Map' } as any)}
+              onPress={handleWeatherClick}
               activeOpacity={0.7}
             >
               <View style={styles.dataCardHeader}>
@@ -277,7 +335,7 @@ const HomeScreen = () => {
                 <View style={styles.dataCardInfo}>
                   <Text style={styles.dataCardLocation}>{weatherData.city_name}</Text>
                   <Text style={styles.dataCardCity}>
-                    {weatherData.location 
+                    {weatherData.location
                       ? `${weatherData.location.coordinates[1].toFixed(2)}, ${weatherData.location.coordinates[0].toFixed(2)}`
                       : `${weatherData.latitude?.toFixed(2)}, ${weatherData.longitude?.toFixed(2)}`
                     }

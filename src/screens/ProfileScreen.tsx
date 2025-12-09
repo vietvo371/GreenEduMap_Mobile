@@ -27,13 +27,21 @@ import {
 } from '../theme';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AlertService } from '../services/AlertService';
+import { userDataService } from '../services';
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
-  const { user, signOut, getCurrentUser } = useAuth();
+  const { user, signOut, getCurrentUser, environmentalImpact, educationalProgress } = useAuth();
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // User data from services
+  const [userStats, setUserStats] = useState({
+    favorites: 0,
+    contributions: 0,
+    activities: 0,
+  });
 
   // Animation refs for menu modal
   const slideAnim = useRef(new Animated.Value(500)).current;
@@ -42,6 +50,7 @@ const ProfileScreen = () => {
   // Fetch profile on mount
   useEffect(() => {
     fetchProfile();
+    fetchUserData();
   }, []);
 
   const fetchProfile = async () => {
@@ -50,6 +59,25 @@ const ProfileScreen = () => {
     } catch (error) {
       console.error('Error fetching profile:', error);
       AlertService.error('Lỗi', 'Không thể tải thông tin tài khoản');
+    }
+  };
+
+  const fetchUserData = async () => {
+    try {
+      const [favs, contribs, acts] = await Promise.all([
+        userDataService.getFavorites(),
+        userDataService.getContributions(),
+        userDataService.getActivities(),
+      ]);
+
+      setUserStats({
+        favorites: favs.items?.length || 0,
+        contributions: contribs.items?.length || 0,
+        activities: acts.items?.length || 0,
+      });
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      // Silent fail - keep showing 0s
     }
   };
 
@@ -63,6 +91,7 @@ const ProfileScreen = () => {
     setRefreshing(true);
     try {
       await getCurrentUser();
+      await fetchUserData();
     } catch (error) {
       console.error('Error refreshing profile:', error);
     } finally {
@@ -241,7 +270,9 @@ const ProfileScreen = () => {
               <View style={[styles.quickStatIcon, { backgroundColor: theme.colors.successLight }]}>
                 <Icon name="tree" size={ICON_SIZE.lg} color={theme.colors.success} />
               </View>
-              <Text style={styles.quickStatValue}>0</Text>
+              <Text style={styles.quickStatValue}>
+                {environmentalImpact?.totalActionsCount || userStats.contributions || 0}
+              </Text>
               <Text style={styles.quickStatLabel}>Hành động xanh</Text>
             </TouchableOpacity>
 
@@ -249,7 +280,9 @@ const ProfileScreen = () => {
               <View style={[styles.quickStatIcon, { backgroundColor: theme.colors.infoLight }]}>
                 <Icon name="book-open-variant" size={ICON_SIZE.lg} color={theme.colors.info} />
               </View>
-              <Text style={styles.quickStatValue}>0</Text>
+              <Text style={styles.quickStatValue}>
+                {educationalProgress?.coursesCompleted || 0}
+              </Text>
               <Text style={styles.quickStatLabel}>Khóa học</Text>
             </TouchableOpacity>
 
@@ -257,7 +290,9 @@ const ProfileScreen = () => {
               <View style={[styles.quickStatIcon, { backgroundColor: theme.colors.warningLight }]}>
                 <Icon name="trophy" size={ICON_SIZE.lg} color={theme.colors.warning} />
               </View>
-              <Text style={styles.quickStatValue}>0</Text>
+              <Text style={styles.quickStatValue}>
+                {userStats.favorites || userStats.activities || 0}
+              </Text>
               <Text style={styles.quickStatLabel}>Thành tích</Text>
             </TouchableOpacity>
           </View>

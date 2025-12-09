@@ -17,29 +17,18 @@ import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
-import api from '../utils/Api';
+import { useAuth } from '../contexts/AuthContext';
+import { authService } from '../services';
 import { useTranslation } from '../hooks/useTranslation';
-
-
-interface UserProfile {
-  full_name: string;
-  email: string;
-  number_phone: string;
-  address: string;
-  is_ekyc: number;
-  is_active_mail: number;
-  is_active_phone: number;
-  is_open: number;
-  is_level: number;
-}
+import { AlertService } from '../services/AlertService';
 
 const EditProfileScreen = () => {
   const { t } = useTranslation();
   const navigation = useNavigation();
+  const { user: contextUser, getCurrentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [user, setUser] = useState<UserProfile | null>(null);
-  
+
   // Form fields
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -61,24 +50,20 @@ const EditProfileScreen = () => {
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/client/profile');
-      
-      if (response.data.status) {
-        const profileData = response.data.data;
-        setUser(profileData);
-        setFullName(profileData.full_name || '');
-        setEmail(profileData.email || '');
-        setPhone(profileData.number_phone || '');
-        setAddress(profileData.address || '');
-        
-        // Check verification statuses
-        setIsEmailVerified(profileData.is_active_mail === 1);
-        setIsPhoneVerified(profileData.is_active_phone === 1);
-        setIsEkycVerified(profileData.is_ekyc === 1);
-      }
+      const profileData = await authService.getProfile();
+
+      setFullName(profileData.full_name || '');
+      setEmail(profileData.email || '');
+      setPhone(profileData.phone || '');
+      setAddress((profileData as any).address || ''); // address may not be in User type yet
+
+      // Check verification statuses (using optional fields)
+      setIsEmailVerified((profileData as any).is_email_verified || profileData.is_verified || false);
+      setIsPhoneVerified((profileData as any).is_phone_verified || false);
+      setIsEkycVerified((profileData as any).is_ekyc_verified || false);
     } catch (error) {
       console.log('Error fetching profile:', error);
-      Alert.alert('Error', 'Cannot load profile information');
+      AlertService.error(t('common.error'), t('editProfile.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -142,21 +127,16 @@ const EditProfileScreen = () => {
 
       // Only include phone if not verified
       if (!isPhoneVerified && phone.trim()) {
-        updateData.number_phone = phone.trim();
+        updateData.phone = phone.trim();
       }
 
-      const response = await api.post('/client/update-profile', updateData);
-      
-      if (response.data.status) {
-        Alert.alert(t('common.success'), t('editProfile.updateSuccess'), [
-          {
-            text: t('common.confirm'),
-            onPress: () => navigation.goBack()
-          }
-        ]);
-      } else {
-        Alert.alert(t('common.error'), response.data.message || t('editProfile.updateFailed'));
-      }
+      await authService.updateProfile(updateData);
+
+      // Refresh user data in context
+      await getCurrentUser();
+
+      AlertService.success(t('common.success'), t('editProfile.updateSuccess'));
+      navigation.goBack();
     } catch (error: any) {
       console.log('Update profile error:', error);
       if (error.response?.data?.errors) {
@@ -170,7 +150,7 @@ const EditProfileScreen = () => {
         if (error.response?.data?.message) {
           errorMessage = error.response.data.message;
         }
-        Alert.alert(t('common.error'), errorMessage);
+        AlertService.error(t('common.error'), errorMessage);
       }
     } finally {
       setSaving(false);
@@ -192,7 +172,7 @@ const EditProfileScreen = () => {
         setAddress(value);
         break;
     }
-    
+
     if (errors[key]) {
       setErrors(prev => ({ ...prev, [key]: '' }));
     }
@@ -216,10 +196,10 @@ const EditProfileScreen = () => {
           </View>
         )}
       </View>
-      
+
       <TextInput
         style={[
-          styles.input, 
+          styles.input,
           errors[fieldKey] && styles.inputError,
           isVerified && styles.inputDisabled
         ]}
@@ -230,12 +210,12 @@ const EditProfileScreen = () => {
         keyboardType={keyboardType}
         editable={!isVerified}
       />
-      
+
       {errors[fieldKey] && <Text style={styles.errorText}>{errors[fieldKey]}</Text>}
-      
+
       {isVerified && (
         <Text style={styles.disabledText}>
-          {fieldKey === 'full_name' 
+          {fieldKey === 'full_name'
             ? t('editProfile.ekycVerifiedDesc')
             : t('editProfile.verifiedDesc')
           }
@@ -258,14 +238,14 @@ const EditProfileScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Icon name="arrow-left" size={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('editProfile.title')}</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
           disabled={saving}

@@ -72,7 +72,7 @@ export const useNearbyGreenZones = (params: NearbyParams | null) => {
     if (params) {
       fetchData();
     }
-  }, [fetchData, params]);
+  }, [fetchData]); // Fixed: removed params object from deps, fetchData already has primitive deps
 
   return { data, loading, error, refetch: fetchData };
 };
@@ -195,7 +195,7 @@ export const useNearbyGreenResources = (params: NearbyParams | null) => {
     if (params) {
       fetchData();
     }
-  }, [fetchData, params]);
+  }, [fetchData]); // Fixed: removed params object from deps, fetchData already has primitive deps
 
   return { data, loading, error, refetch: fetchData };
 };

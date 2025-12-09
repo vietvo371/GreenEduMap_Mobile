@@ -240,6 +240,42 @@ export const greenResourceService = {
     }
   },
 
+  /**
+   * Tìm khu vực xanh gần vị trí (Authenticated)
+   */
+  getNearbyGreenZones: async (params: NearbyParams): Promise<GreenZone[]> => {
+    try {
+      console.log('🌐 [API] GET /green-zones/nearby', {
+        lat: params.latitude,
+        lon: params.longitude,
+        radius: params.radius
+      });
+
+      const response = await api.get<GreenZone[]>('/green-zones/nearby', {
+        params: {
+          latitude: params.latitude,
+          longitude: params.longitude,
+          radius: params.radius || 5,
+          limit: params.limit || 10,
+        },
+      });
+
+      if (response.data) {
+        console.log('✅ [API] Nearby green zones (auth) received:', response.data.length, 'items');
+        return response.data;
+      }
+
+      return [];
+    } catch (error: any) {
+      console.error('❌ [API] Get nearby green zones error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      return [];
+    }
+  },
+
   // ============================================================================
   // GREEN RESOURCES (Public - no auth required)
   // ============================================================================

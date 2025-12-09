@@ -77,7 +77,7 @@ export const useNearbySchools = (params: NearbySchoolParams | null) => {
     if (params) {
       fetchData();
     }
-  }, [fetchData, params]);
+  }, [fetchData]); // Fixed: removed params object from deps, fetchData already has primitive deps
 
   return { data, loading, error, refetch: fetchData };
 };

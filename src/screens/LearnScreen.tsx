@@ -20,6 +20,7 @@ import {
   RefreshControl,
   ImageBackground,
   Dimensions,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -27,6 +28,7 @@ import { StackScreen } from '../navigation/types';
 import { useAuth } from '../contexts/AuthContext';
 import { theme, SPACING, FONT_SIZE, BORDER_RADIUS } from '../theme';
 import { useGreenCourses } from '../hooks/useSchools';
+import { userDataService } from '../services';
 import type { GreenCourse } from '../types/api';
 
 const { width } = Dimensions.get('window');
@@ -40,7 +42,7 @@ const CATEGORIES: Array<{ id: string; label: string; icon: string }> = [
 ];
 
 const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
-  const { educationalProgress } = useAuth();
+  const { educationalProgress, user } = useAuth();
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [activeDifficulty, setActiveDifficulty] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -60,8 +62,18 @@ const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
     setRefreshing(false);
   }, [refetch]);
 
-  const handleCoursePress = (courseId: string) => {
-    navigation.navigate('CourseDetail', { courseId });
+  const handleCoursePress = (course: GreenCourse) => {
+    navigation.navigate('CourseDetail', { courseId: course.id });
+
+    // Log activity (non-blocking)
+    if (user) {
+      userDataService.logActivity({
+        activity_type: 'view_course_detail',
+        description: `Viewed course: ${course.title}`,
+        resource_type: 'green_course',
+        resource_id: course.id,
+      }).catch((err: any) => console.log('📊 Activity log failed:', err));
+    }
   };
 
   const handleAchievementsPress = () => {
@@ -93,16 +105,12 @@ const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
             <Text style={styles.headerTitle}>Học tập</Text>
             <Text style={styles.headerSubtitle}>Kiến thức xanh cho tương lai xanh</Text>
           </View>
-        
+
         </View>
       </View>
 
-      <ScrollView
+      <View
         style={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
-        }
       >
         {/* User Progress Hero Card */}
         <View style={styles.heroCardContainer}>
@@ -207,23 +215,30 @@ const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Course List */}
-        <View style={[styles.sectionContainer, { paddingBottom: 100 }]}>
-          {loading && !refreshing ? (
-            <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 20 }} />
-          ) : courses.length > 0 ? (
-            courses.map((course) => (
+        {/* Course List - Scrollable */}
+        {loading && !refreshing ? (
+          <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginTop: 20 }} />
+        ) : courses.length > 0 ? (
+          <FlatList
+            data={courses}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.courseListContainer}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
+            }
+            renderItem={({ item: course }) => (
               <TouchableOpacity
-                key={course.id}
                 style={styles.courseCard}
-                onPress={() => handleCoursePress(course.id)}
+                onPress={() => handleCoursePress(course)}
                 activeOpacity={0.9}
               >
                 <View style={styles.courseImageContainer}>
                   <ImageBackground
-                    source={{ uri: course.icon || 'https://images.unsplash.com/photo-1542601906990-b4d3fb7d5fa5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80' }}
+                    source={require('../assets/images/book.png')}
                     style={styles.courseImage}
+                    resizeMode="cover"
                   >
+                    <View style={styles.courseImageOverlay} />
                     <View style={[styles.courseDifficultyBadge, { backgroundColor: getDifficultyColor(course.difficulty) }]}>
                       <Text style={styles.courseDifficultyText}>
                         {course.difficulty === 'beginner' ? 'Cơ bản' : course.difficulty === 'intermediate' ? 'Trung bình' : 'Nâng cao'}
@@ -258,22 +273,22 @@ const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
 
                   <View style={styles.courseFooter}>
                     <View style={styles.progressBarBg}>
-                      <View style={[styles.progressBarFill, { width: '0%' }]} />
+                      <View style={[styles.progressBarFill, { width: `${course.progress || 0}%` }]} />
                     </View>
-                    <Text style={styles.progressText}>0%</Text>
+                    <Text style={styles.progressText}>{course.progress || 0}%</Text>
                   </View>
                 </View>
               </TouchableOpacity>
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Icon name="book-open-variant" size={48} color={theme.colors.textLight} />
-              <Text style={styles.emptyStateText}>Không tìm thấy khóa học nào</Text>
-              <Text style={styles.emptyStateSubtext}>Thử thay đổi bộ lọc tìm kiếm</Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
+            )}
+          />
+        ) : (
+          <View style={styles.emptyState}>
+            <Icon name="book-open-variant" size={48} color={theme.colors.textLight} />
+            <Text style={styles.emptyStateText}>Không tìm thấy khóa học nào</Text>
+            <Text style={styles.emptyStateSubtext}>Thử thay đổi bộ lọc tìm kiếm</Text>
+          </View>
+        )}
+      </View>
     </SafeAreaView>
   );
 };
@@ -410,6 +425,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     marginBottom: SPACING.xl,
   },
+  courseListContainer: {
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: 100,
+  },
   sectionTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: 'bold',
@@ -486,6 +505,12 @@ const styles = StyleSheet.create({
   courseImage: {
     width: '100%',
     height: '100%',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  courseImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
   },
   courseDifficultyBadge: {
     position: 'absolute',
