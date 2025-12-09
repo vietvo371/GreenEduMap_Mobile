@@ -37,21 +37,20 @@ export interface GreenZone {
 }
 
 export interface GreenResource {
-  id: number;
+  id: string; // UUID
   name: string;
-  type: 'renewable_energy' | 'recycling_center' | 'water_treatment' | 'waste_management' | 'green_building' | 'other';
-  district: string;
-  city: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  description?: string;
-  capacity?: string;
-  operating_hours?: string;
-  contact_phone?: string;
-  contact_email?: string;
-  image_url?: string;
-  distance?: number; // km (when using nearby endpoint)
+  type: string;
+  quantity: number;
+  available_quantity: number;
+  unit: string;
+  status: string;
+  expiry_date: string | null;
+  is_public: boolean;
+  data_uri: string | null;
+  meta_data: any | null;
+  zone_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface GreenZoneParams {
@@ -85,12 +84,14 @@ export const greenResourceService = {
   // ============================================================================
 
   /**
-   * Lấy danh sách khu vực xanh (công viên, rừng, vườn)
+   * Lấy danh sách khu vực xanh công khai (công viên, rừng, vườn)
    */
-  getGreenZones: async (params?: GreenZoneParams): Promise<GreenZone[]> => {
+  getPublicGreenZones: async (params?: GreenZoneParams): Promise<GreenZone[]> => {
     try {
-      // API trả về array trực tiếp (không có wrapper)
-      const response = await api.get<GreenZone[]>('/open-data/green-zones', {
+      console.log('🌐 [API] GET /api/open-data/green-zones', params);
+      // Public endpoints are at /api/open-data, not /api/v1/open-data
+      const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || '';
+      const response = await api.get<GreenZone[]>(`${baseUrl}/api/open-data/green-zones`, {
         params: {
           skip: params?.skip || 0,
           limit: params?.limit || 10,
@@ -99,65 +100,143 @@ export const greenResourceService = {
       });
 
       if (response.data) {
+        console.log('✅ [API] Public green zones received:', response.data.length, 'items');
         return response.data;
       }
 
       return [];
-    } catch (error) {
-      console.error('Get green zones error:', error.data);
+    } catch (error: any) {
+      console.error('❌ [API] Get public green zones error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
       return [];
     }
   },
 
   /**
-   * Tìm khu vực xanh gần vị trí
+   * Tìm khu vực xanh gần vị trí (Public)
    */
-  getNearbyGreenZones: async (params: NearbyParams): Promise<GreenZone[]> => {
+  getPublicNearbyGreenZones: async (params: NearbyParams): Promise<GreenZone[]> => {
     try {
-      // Fallback to main endpoint since /nearby is 404
-      // We pass location params in case backend supports filtering
-      const response = await api.get<GreenZone[]>('/open-data/green-zones', {
+      console.log('🌐 [API] GET /api/open-data/green-zones/nearby', {
+        lat: params.latitude,
+        lon: params.longitude,
+        radius: params.radius
+      });
+      // Public endpoints are at /api/open-data, not /api/v1/open-data
+      // API uses lat/lon instead of latitude/longitude for this endpoint
+      const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || '';
+      const response = await api.get<GreenZone[]>(`${baseUrl}/api/open-data/green-zones/nearby`, {
         params: {
-          latitude: params.latitude,
-          longitude: params.longitude,
+          lat: params.latitude,
+          lon: params.longitude,
           radius: params.radius || 5,
           limit: params.limit || 10,
         },
       });
 
       if (response.data) {
-        // If the backend doesn't return distance, we could calculate it here if needed
-        // For now, we just return the list to avoid 404
+        console.log('✅ [API] Public nearby green zones received:', response.data.length, 'items');
         return response.data;
       }
 
       return [];
     } catch (error: any) {
-      // Setup silent fail for 404 as the endpoint might not be ready
-      if (error.response?.status === 404) {
-        console.warn('Nearby green zones endpoint not found, returning empty list.');
-        return [];
+      if (error.response?.status === 422) {
+        console.warn('⚠️ [API] Green zones nearby endpoint parameter error. Check lat/lon params.');
       }
-      console.error('Get nearby green zones error:', error);
+      console.error('❌ [API] Get public nearby green zones error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
       return [];
     }
   },
 
   /**
-   * Lấy chi tiết khu vực xanh
+   * Lấy chi tiết khu vực xanh công khai
    */
-  getGreenZoneById: async (id: string): Promise<GreenZone> => {
+  getPublicGreenZoneById: async (id: string): Promise<GreenZone | null> => {
     try {
-      const response = await api.get<ApiResponse<GreenZone>>(`/open-data/green-zones/${id}`);
+      console.log('🌐 [API] GET /api/open-data/green-zones/' + id);
+      // Public endpoints are at /api/open-data, not /api/v1/open-data
+      const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || '';
+      const response = await api.get<GreenZone>(`${baseUrl}/api/open-data/green-zones/${id}`);
+      if (response.data) {
+        console.log('✅ [API] Public green zone by ID received');
+        return response.data;
+      }
+      return null;
+    } catch (error: any) {
+      console.error('❌ [API] Get public green zone by ID error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      return null;
+    }
+  },
 
-      if (response.data.success && response.data.data) {
-        return response.data.data;
+  // ============================================================================
+  // GREEN ZONES (Authenticated - requires auth)
+  // ============================================================================
+
+  /**
+   * Lấy danh sách khu vực xanh (Authenticated)
+   */
+  getGreenZones: async (params?: GreenZoneParams): Promise<GreenZone[]> => {
+    try {
+      console.log('🌐 [API] GET /green-zones', params);
+      // API trả về array trực tiếp, không có wrapper
+      const response = await api.get<GreenZone[]>('/green-zones', {
+        params: {
+          skip: params?.skip || 0,
+          limit: params?.limit || 10,
+          zone_type: params?.zone_type,
+        },
+      });
+
+      if (response.data) {
+        console.log('✅ [API] Green zones (auth) received:', response.data.length, 'items');
+        return response.data;
       }
 
-      throw new Error('Không thể lấy thông tin khu vực xanh');
-    } catch (error) {
-      console.error('Get green zone by ID error:', error);
-      throw error;
+      return [];
+    } catch (error: any) {
+      console.error('❌ [API] Get green zones error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      return [];
+    }
+  },
+
+  /**
+   * Lấy chi tiết khu vực xanh theo ID (Authenticated)
+   */
+  getGreenZoneById: async (id: string): Promise<GreenZone | null> => {
+    try {
+      console.log('🌐 [API] GET /green-zones/' + id);
+      // API trả về GreenZone object trực tiếp hoặc 503 error
+      const response = await api.get<GreenZone>(`/green-zones/${id}`);
+
+      if (response.data) {
+        console.log('✅ [API] Green zone by ID received');
+        return response.data;
+      }
+
+      return null;
+    } catch (error: any) {
+      console.error('❌ [API] Get green zone by ID error:', {
+        message: error.message,
+        status: error.response?.status,
+        detail: error.response?.data?.detail
+      });
+      return null;
     }
   },
 
@@ -166,81 +245,197 @@ export const greenResourceService = {
   // ============================================================================
 
   /**
-   * Lấy danh sách tài nguyên xanh (năng lượng tái tạo, trung tâm tái chế)
+   * Lấy danh sách tài nguyên xanh công khai
    */
-  getGreenResources: async (params?: GreenResourceParams): Promise<{ data: GreenResource[]; total: number }> => {
+  getPublicGreenResources: async (params?: GreenResourceParams): Promise<any[]> => {
     try {
-      const response = await api.get<ApiResponse<{ items: GreenResource[]; total: number }>>('/open-data/green-resources', {
+      console.log('🌐 [API] GET /api/open-data/green-resources', params);
+      // Public endpoints are at /api/open-data, not /api/v1/open-data
+      const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || '';
+      const response = await api.get<any[]>(`${baseUrl}/api/open-data/green-resources`, {
         params: {
           skip: params?.skip || 0,
           limit: params?.limit || 10,
           type: params?.type,
-          city: params?.city,
-          district: params?.district,
         },
       });
 
-      if (response.data.success && response.data.data) {
-        return {
-          data: response.data.data.items,
-          total: response.data.data.total,
-        };
+      if (response.data) {
+        console.log('✅ [API] Public green resources received:', response.data.length, 'items');
+        return response.data;
       }
 
-      throw new Error('Không thể lấy danh sách tài nguyên xanh');
-    } catch (error) {
-      console.error('Get green resources error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Tìm tài nguyên xanh gần vị trí
-   */
-  getNearbyGreenResources: async (params: NearbyParams): Promise<GreenResource[]> => {
-    try {
-      // Fallback to main endpoint with location params
-      const response = await api.get<ApiResponse<{ items: GreenResource[]; total: number }>>('/open-data/green-resources', {
-        params: {
-          latitude: params.latitude,
-          longitude: params.longitude,
-          radius: params.radius || 5,
-          limit: params.limit || 10,
-        },
+      return [];
+    } catch (error: any) {
+      console.error('❌ [API] Get public green resources error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
       });
-
-      if (response.data.success && response.data.data) {
-        // Note: getGreenResources returns { items: [], total: number } wrapped in ApiResponse
-        return response.data.data.items;
-      }
-
       return [];
-    } catch (error) {
-      console.error('Get nearby green resources error:', error);
-      return [];
-    }
-  },
-
-  /**
-   * Lấy chi tiết tài nguyên xanh
-   */
-  getGreenResourceById: async (id: number): Promise<GreenResource> => {
-    try {
-      const response = await api.get<ApiResponse<GreenResource>>(`/open-data/green-resources/${id}`);
-
-      if (response.data.success && response.data.data) {
-        return response.data.data;
-      }
-
-      throw new Error('Không thể lấy thông tin tài nguyên xanh');
-    } catch (error) {
-      console.error('Get green resource by ID error:', error);
-      throw error;
     }
   },
 
   // ============================================================================
-  // CATALOG (Public - no auth required)
+  // GREEN RESOURCES (Authenticated - requires auth)
+  // ============================================================================
+
+  /**
+   * Lấy danh sách tài nguyên xanh (Authenticated)
+   */
+  getGreenResources: async (params?: GreenResourceParams): Promise<any[]> => {
+    try {
+      console.log('🌐 [API] GET /green-resources', params);
+      // API trả về array trực tiếp, không có wrapper
+      const response = await api.get<any[]>('/green-resources', {
+        params: {
+          skip: params?.skip || 0,
+          limit: params?.limit || 10,
+          type: params?.type,
+        },
+      });
+
+      if (response.data) {
+        console.log('✅ [API] Green resources (auth) received:', response.data.length, 'items');
+        return response.data;
+      }
+
+      return [];
+    } catch (error: any) {
+      console.error('❌ [API] Get green resources error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      return [];
+    }
+  },
+
+  /**
+   * Lấy chi tiết tài nguyên xanh (Authenticated)
+   */
+  getGreenResourceById: async (id: string): Promise<any | null> => {
+    try {
+      console.log('🌐 [API] GET /green-resources/' + id);
+      // API trả về object trực tiếp hoặc 503 error
+      const response = await api.get<any>(`/green-resources/${id}`);
+
+      if (response.data) {
+        console.log('✅ [API] Green resource by ID received');
+        return response.data;
+      }
+
+      return null;
+    } catch (error: any) {
+      console.error('❌ [API] Get green resource by ID error:', {
+        message: error.message,
+        status: error.response?.status,
+        detail: error.response?.data?.detail
+      });
+      return null;
+    }
+  },
+
+  // ============================================================================
+  // RECYCLING CENTERS
+  // ============================================================================
+
+  /**
+   * Lấy danh sách trung tâm tái chế công khai
+   */
+  getPublicCenters: async (params?: { skip?: number; limit?: number }): Promise<any[]> => {
+    try {
+      console.log('🌐 [API] GET /api/open-data/centers', params);
+      // Public endpoints are at /api/open-data, not /api/v1/open-data
+      const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || '';
+      const response = await api.get<any[]>(`${baseUrl}/api/open-data/centers`, {
+        params: {
+          skip: params?.skip || 0,
+          limit: params?.limit || 10,
+        },
+      });
+
+      if (response.data) {
+        console.log('✅ [API] Public centers received:', response.data.length, 'items');
+        return response.data;
+      }
+
+      return [];
+    } catch (error: any) {
+      console.error('❌ [API] Get public centers error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      return [];
+    }
+  },
+
+  /**
+   * Tìm trung tâm tái chế gần vị trí (Public)
+   */
+  getPublicNearbyCenters: async (params: NearbyParams): Promise<any[]> => {
+    try {
+      console.log('🌐 [API] GET /api/open-data/centers/nearby', params);
+      // Public endpoints are at /api/open-data, not /api/v1/open-data
+      const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || '';
+      const response = await api.get<any[]>(`${baseUrl}/api/open-data/centers/nearby`, {
+        params: {
+          latitude: params.latitude,
+          longitude: params.longitude,
+          radius_km: params.radius || 10,
+          limit: params.limit || 10,
+        },
+      });
+
+      if (response.data) {
+        console.log('✅ [API] Public nearby centers received:', response.data.length, 'items');
+        return response.data;
+      }
+
+      return [];
+    } catch (error: any) {
+      console.error('❌ [API] Get public nearby centers error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      return [];
+    }
+  },
+
+  /**
+   * Lấy danh sách trung tâm tái chế (Authenticated)
+   */
+  getCenters: async (params?: { skip?: number; limit?: number }): Promise<any[]> => {
+    try {
+      console.log('🌐 [API] GET /centers', params);
+      // API trả về array trực tiếp, không có wrapper
+      const response = await api.get<any[]>('/centers', {
+        params: {
+          skip: params?.skip || 0,
+          limit: params?.limit || 10,
+        },
+      });
+
+      if (response.data) {
+        console.log('✅ [API] Centers (auth) received:', response.data.length, 'items');
+        return response.data;
+      }
+
+      return [];
+    } catch (error: any) {
+      console.error('❌ [API] Get centers error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      return [];
+    }
+  },
+
+  // ============================================================================
+  // CATALOG & EXPORT (Public - no auth required)
   // ============================================================================
 
   /**
@@ -256,6 +451,9 @@ export const greenResourceService = {
     }>;
   }> => {
     try {
+      console.log('🌐 [API] GET /api/open-data/catalog');
+      // Public endpoints are at /api/open-data, not /api/v1/open-data
+      const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || '';
       const response = await api.get<{
         datasets: Array<{
           id: string;
@@ -264,20 +462,53 @@ export const greenResourceService = {
           formats: string[];
           api_endpoint: string;
         }>;
-      }>('/open-data/catalog');
+      }>(`${baseUrl}/api/open-data/catalog`);
 
       if (response.data && response.data.datasets) {
+        console.log('✅ [API] Catalog received:', response.data.datasets.length, 'datasets');
         return response.data;
       }
 
       return {
         datasets: [],
       };
-    } catch (error) {
-      console.error('Get catalog error:', error);
+    } catch (error: any) {
+      console.error('❌ [API] Get catalog error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
       return {
         datasets: [],
       };
+    }
+  },
+
+  /**
+   * Xuất dữ liệu AQI (placeholder endpoint)
+   */
+  exportAirQuality: async (format: 'json' | 'csv' | 'geojson' = 'json'): Promise<any> => {
+    try {
+      console.log('🌐 [API] GET /api/open-data/export/air-quality', { format });
+      // Public endpoints are at /api/open-data, not /api/v1/open-data
+      const baseUrl = api.defaults.baseURL?.replace('/api/v1', '') || '';
+      const response = await api.get<any>(`${baseUrl}/api/open-data/export/air-quality`, {
+        params: { format },
+      });
+
+      if (response.data) {
+        console.log('✅ [API] Export data received');
+        return response.data;
+      }
+
+      return null;
+    } catch (error: any) {
+      console.error('❌ [API] Export air quality error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      return null;
     }
   },
 };

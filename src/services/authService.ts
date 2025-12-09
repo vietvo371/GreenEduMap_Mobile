@@ -13,23 +13,46 @@ export const authService = {
 
     login: async (credentials: LoginRequest): Promise<LoginResponse> => {
         try {
-            // API trả về trực tiếp LoginResponse (không có wrapper ApiResponse)
-            const response = await api.post<LoginResponse>('/auth/login', credentials);
+            // API trả về: { access_token, refresh_token, token_type, expires_in }
+            // KHÔNG có user object trong response
+            const response = await api.post<{
+                access_token: string;
+                refresh_token: string;
+                token_type: string;
+                expires_in: number;
+            }>('/auth/login', credentials);
 
             const data = response.data;
 
-            // Lưu tokens và user data
+            // Lưu tokens
             if (data.access_token) {
                 await AsyncStorage.setItem(TOKEN_KEY, data.access_token);
             }
             if (data.refresh_token) {
                 await AsyncStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
             }
-            if (data.user) {
-                await AsyncStorage.setItem(USER_KEY, JSON.stringify(data.user));
+
+            // Sau khi login thành công, gọi /auth/me để lấy user data
+            try {
+                const userResponse = await api.get<User>('/auth/me', {
+                    headers: {
+                        Authorization: `Bearer ${data.access_token}`
+                    }
+                });
+                if (userResponse.data) {
+                    await AsyncStorage.setItem(USER_KEY, JSON.stringify(userResponse.data));
+                }
+            } catch (error) {
+                console.error('Get user after login error:', error);
             }
 
-            return data;
+            // Return format giống LoginResponse để compatible với code hiện tại
+            return {
+                access_token: data.access_token,
+                refresh_token: data.refresh_token,
+                token_type: data.token_type,
+                user: undefined, // Will be fetched separately
+            } as LoginResponse;
         } catch (error) {
             console.error('Login error:', error);
             throw error;
@@ -38,23 +61,24 @@ export const authService = {
 
     register: async (data: RegisterRequest): Promise<LoginResponse> => {
         try {
-            // API trả về trực tiếp LoginResponse (không có wrapper ApiResponse)
-            const response = await api.post<LoginResponse>('/auth/register', data);
+            // API trả về User object trực tiếp (không có tokens)
+            // Response: { email, username, full_name, phone, id, role, is_active, created_at }
+            const response = await api.post<User>('/auth/register', data);
 
-            const responseData = response.data;
+            const userData = response.data;
 
-            // Lưu tokens và user data
-            if (responseData.access_token) {
-                await AsyncStorage.setItem(TOKEN_KEY, responseData.access_token);
-            }
-            if (responseData.refresh_token) {
-                await AsyncStorage.setItem(REFRESH_TOKEN_KEY, responseData.refresh_token);
-            }
-            if (responseData.user) {
-                await AsyncStorage.setItem(USER_KEY, JSON.stringify(responseData.user));
+            // Lưu user data
+            if (userData) {
+                await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
             }
 
-            return responseData;
+            // Sau khi register, cần login để lấy tokens
+            const loginResponse = await authService.login({
+                email: data.email,
+                password: data.password,
+            });
+
+            return loginResponse;
         } catch (error) {
             console.error('Register error:', error);
             throw error;
@@ -136,6 +160,27 @@ export const authService = {
         throw new Error('Làm mới token thất bại');
     },
 
+    /**
+     * Kiểm tra token hợp lệ
+     */
+    validateToken: async (): Promise<{
+        valid: boolean;
+        user_id?: string;
+        email?: string;
+        username?: string;
+        role?: string;
+        is_active?: boolean;
+        checked_at?: string;
+    }> => {
+        try {
+            const response = await api.get('/auth/validate-token');
+            return response.data;
+        } catch (error) {
+            console.error('Validate token error:', error);
+            throw error;
+        }
+    },
+
     // ============================================================================
     // PASSWORD MANAGEMENT
     // ============================================================================
@@ -174,7 +219,12 @@ export const authService = {
     // ============================================================================
 
     updateFcmToken: async (pushToken: string): Promise<void> => {
-        await api.post('/auth/update-fcm-token', { fcm_token: pushToken });
+        await api.post('/fcm-tokens', {
+            token: pushToken,
+            device_type: 'ios',
+            device_name: 'iPhone 14 Pro',
+            device_id: 'unique-device-identifier'
+        });
     },
 };
 

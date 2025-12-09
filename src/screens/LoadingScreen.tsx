@@ -24,8 +24,9 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ navigation }) => {
     const checkLogin = async () => {
       try {
         await new Promise((resolve: any) => setTimeout(resolve, 1500));
-        const res = await api.get('/checklogin');
-        if (res.data?.status) {
+        const res = await api.get('/auth/validate-token');
+        console.log('Validate token response:', res.data);
+        if (res.data?.valid) {
           navigation.replace('MainTabs');
         } else {
           navigation.replace('Login');
@@ -34,7 +35,6 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ navigation }) => {
         console.error('Error checking login:', error);
         navigation.replace('Login');
       }
-
     }
     checkLogin();
   }, [navigation]);

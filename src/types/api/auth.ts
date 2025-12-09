@@ -1,6 +1,6 @@
 import { ApiResponse } from './common';
 
-export type UserRole = 'student' | 'teacher' | 'parent' | 'researcher' | 'admin' | 'verifier';
+export type UserRole = 'citizen' | 'student' | 'teacher' | 'parent' | 'researcher' | 'admin' | 'verifier';
 
 export interface User {
     id: string; // UUID
@@ -13,23 +13,28 @@ export interface User {
     is_active?: boolean;
     is_verified?: boolean;
     is_public?: boolean;
-    email_verified?: boolean;
-    phone_verified?: boolean;
-    ekyc_verified?: boolean;
-    points?: number; // Environmental points
-    carbon_saved?: number; // Total CO2 saved
-    badge_level?: number;
-    badge_level_text?: string;
     created_at: string;
     updated_at?: string;
     last_login?: string;
+}
+
+// Extended user stats - NOT from API yet, for future implementation
+export interface UserStats {
+    points?: number; // Environmental points
+    carbon_saved?: number; // Total CO2 saved (kg)
+    actions_count?: number; // Total green actions
+    badge_level?: number;
+    badge_level_text?: string;
+    trees_planted?: number;
+    water_saved?: number; // liters
 }
 
 export interface LoginResponse {
     access_token: string;
     refresh_token: string;
     token_type: string;
-    expires_in: number;
+    expires_in?: number;
+    user?: User; // Optional - will be fetched separately
 }
 
 export interface LoginRequest {

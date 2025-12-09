@@ -19,7 +19,7 @@ const NotificationService: React.FC<NotificationServiceProps> = ({
       const enabled =
         authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
         authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-      
+
       if (enabled) {
         console.log('Đã được cấp quyền thông báo');
         await getToken();
@@ -38,7 +38,7 @@ const NotificationService: React.FC<NotificationServiceProps> = ({
       if (Platform.OS === 'ios') {
         await messaging().registerDeviceForRemoteMessages();
       }
-      
+
       const token = await messaging().getToken();
       console.log('FCM Token:', token);
       await authService.updateFcmToken(token);
@@ -54,26 +54,27 @@ const NotificationService: React.FC<NotificationServiceProps> = ({
     // Xử lý thông báo khi app ở foreground
     const unsubscribeOnMessage = messaging().onMessage(async remoteMessage => {
       console.log('Thông báo nhận được khi app đang mở:', remoteMessage);
-      
+
       if (onNotification) {
         onNotification(remoteMessage);
       }
-      
+
       // Hiển thị alert cho thông báo foreground
-      if (remoteMessage.notification) {
-        Alert.alert(
-          remoteMessage.notification.title || 'Thông báo',
-          remoteMessage.notification.body || '',
-          [{ text: 'OK' }]
-        );
-      }
+      console.log('Thông báo nhận được khi app đang mở:', remoteMessage);
+      // if (remoteMessage.notification) {
+      //   Alert.alert(
+      //     remoteMessage.notification.title || 'Thông báo',
+      //     remoteMessage.notification.body || '',
+      //     [{ text: 'OK' }]
+      //   );
+      // }
     });
 
     // Xử lý khi người dùng nhấp vào thông báo và app đang ở background
     const unsubscribeOnNotificationOpenedApp = messaging().onNotificationOpenedApp(
       remoteMessage => {
         console.log('Mở từ thông báo khi app ở background:', remoteMessage);
-        
+
         if (onNotificationOpened) {
           onNotificationOpened(remoteMessage);
         }
@@ -89,7 +90,7 @@ const NotificationService: React.FC<NotificationServiceProps> = ({
             'App mở từ thông báo khi đang tắt:',
             remoteMessage,
           );
-          
+
           if (onNotificationOpened) {
             onNotificationOpened(remoteMessage);
           }

@@ -33,7 +33,7 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 // MAIN TAB SCREENS
 // ============================================================================
 import HomeScreen from '../screens/HomeScreen';
-import MapScreen from '../screens/MapScreenMapbox'; // Using Mapbox GL
+import MapScreen from '../screens/MapScreen'; // Updated with MapTiler + Bottom Sheet
 import LearnScreen from '../screens/LearnScreen';
 import ActionsScreen from '../screens/ActionsScreen';
 import ProfileScreen from '../screens/ProfileScreen';

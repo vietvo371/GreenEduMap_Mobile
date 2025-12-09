@@ -18,6 +18,7 @@ import type {
 
 export const useLatestAirQuality = (limit: number = 10) => {
   const [data, setData] = useState<AirQualityData[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,13 +27,16 @@ export const useLatestAirQuality = (limit: number = 10) => {
       setLoading(true);
       setError(null);
       console.log('🔄 [useLatestAirQuality] Fetching AQI data, limit:', limit);
+      // API trả về { total, data: [] }
       const result = await environmentService.getLatestAirQuality(limit);
-      console.log('✅ [useLatestAirQuality] Success! Received', result.length, 'records');
-      console.log('📊 [useLatestAirQuality] Data:', JSON.stringify(result, null, 2));
-      setData(result);
+      console.log('✅ [useLatestAirQuality] Success! Received', result.data.length, 'records, total:', result.total);
+      setData(result.data);
+      setTotal(result.total);
     } catch (err: any) {
       setError(err.message || 'Không thể tải dữ liệu AQI');
       console.error('❌ [useLatestAirQuality] Error:', err);
+      setData([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -42,7 +46,7 @@ export const useLatestAirQuality = (limit: number = 10) => {
     fetchData();
   }, [fetchData]);
 
-  return { data, loading, error, refetch: fetchData };
+  return { data, total, loading, error, refetch: fetchData };
 };
 
 export const usePublicAirQuality = (params?: { limit?: number; city?: string }) => {

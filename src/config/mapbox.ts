@@ -13,7 +13,7 @@ Mapbox.setAccessToken(env.MAPBOX_ACCESS_TOKEN);
 Mapbox.setTelemetryEnabled(false);
 
 // Set WellKnownTileServer (optional - để sử dụng Mapbox tiles)
-Mapbox.setWellKnownTileServer('Mapbox');
+Mapbox.setWellKnownTileServer('mapbox');
 
 // Configure camera settings (optional)
 export const DEFAULT_CAMERA_CONFIG = {

@@ -23,12 +23,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import MainNavigator from './src/navigation/MainTabNavigator';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { WebSocketProvider } from './src/contexts/WebSocketContext';
 import { theme } from './src/theme/colors';
 import './src/i18n'; // Initialize i18n
 import { navigationRef } from './src/navigation/NavigationService';
 import { AlertProvider } from './src/services/AlertService';
 import AlertServiceConnector from './src/component/AlertServiceConnector';
 import NotificationService from './src/components/NotificationService';
+import { NotificationBanner } from './src/component/NotificationBanner';
 
 const App = () => {
   const isDarkMode = useColorScheme() === 'dark';
@@ -98,13 +100,18 @@ const App = () => {
             onNotificationOpened={handleNotificationOpened}
           />
           <AuthProvider>
-            <StatusBar
-              barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-              backgroundColor={theme.colors.background}
-            />
-            <NavigationContainer theme={navigationTheme} ref={navigationRef}>
-              <MainNavigator />
-            </NavigationContainer>
+            <WebSocketProvider>
+              <StatusBar
+                barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+                backgroundColor={theme.colors.background}
+              />
+              <NavigationContainer theme={navigationTheme} ref={navigationRef}>
+                <MainNavigator />
+              </NavigationContainer>
+              
+              {/* Notification Banner phải nằm BÊN TRONG WebSocketProvider */}
+              <NotificationBanner />
+            </WebSocketProvider>
           </AuthProvider>
         </AlertProvider>
       </SafeAreaProvider>

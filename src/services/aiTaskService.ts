@@ -56,17 +56,24 @@ export const aiTaskService = {
   /**
    * Tạo tác vụ phân cụm AI
    */
-  queueClusteringTask: async (request: ClusteringTaskRequest): Promise<AITask> => {
+  queueClusteringTask: async (request: ClusteringTaskRequest): Promise<{ status: string; task_id: string }> => {
     try {
-      const response = await api.post<ApiResponse<AITask>>('/tasks/ai/clustering', request);
+      console.log('🌐 [API] POST /tasks/ai/clustering', request);
+      // API trả về: { status: "queued", task_id: "uuid" }
+      const response = await api.post<{ status: string; task_id: string }>('/tasks/ai/clustering', request);
 
-      if (response.data.success && response.data.data) {
-        return response.data.data;
+      if (response.data) {
+        console.log('✅ [API] Clustering task queued:', response.data.task_id);
+        return response.data;
       }
 
       throw new Error('Không thể tạo tác vụ phân cụm');
-    } catch (error) {
-      console.error('Queue clustering task error:', error);
+    } catch (error: any) {
+      console.error('❌ [API] Queue clustering task error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
       throw error;
     }
   },
@@ -74,17 +81,24 @@ export const aiTaskService = {
   /**
    * Tạo tác vụ dự đoán AI (ví dụ: dự báo AQI)
    */
-  queuePredictionTask: async (request: PredictionTaskRequest): Promise<AITask> => {
+  queuePredictionTask: async (request: PredictionTaskRequest): Promise<{ status: string; task_id: string }> => {
     try {
-      const response = await api.post<ApiResponse<AITask>>('/tasks/ai/prediction', request);
+      console.log('🌐 [API] POST /tasks/ai/prediction', request);
+      // API trả về: { status: "queued", task_id: "uuid" }
+      const response = await api.post<{ status: string; task_id: string }>('/tasks/ai/prediction', request);
 
-      if (response.data.success && response.data.data) {
-        return response.data.data;
+      if (response.data) {
+        console.log('✅ [API] Prediction task queued:', response.data.task_id);
+        return response.data;
       }
 
       throw new Error('Không thể tạo tác vụ dự đoán');
-    } catch (error) {
-      console.error('Queue prediction task error:', error);
+    } catch (error: any) {
+      console.error('❌ [API] Queue prediction task error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
       throw error;
     }
   },
@@ -92,17 +106,24 @@ export const aiTaskService = {
   /**
    * Tạo tác vụ phân tích tương quan AI
    */
-  queueCorrelationTask: async (request: CorrelationTaskRequest): Promise<AITask> => {
+  queueCorrelationTask: async (request: CorrelationTaskRequest): Promise<{ status: string; task_id: string }> => {
     try {
-      const response = await api.post<ApiResponse<AITask>>('/tasks/ai/correlation', request);
+      console.log('🌐 [API] POST /tasks/ai/correlation', request);
+      // API trả về: { status: "queued", task_id: "uuid" }
+      const response = await api.post<{ status: string; task_id: string }>('/tasks/ai/correlation', request);
 
-      if (response.data.success && response.data.data) {
-        return response.data.data;
+      if (response.data) {
+        console.log('✅ [API] Correlation task queued:', response.data.task_id);
+        return response.data;
       }
 
       throw new Error('Không thể tạo tác vụ phân tích tương quan');
-    } catch (error) {
-      console.error('Queue correlation task error:', error);
+    } catch (error: any) {
+      console.error('❌ [API] Queue correlation task error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
       throw error;
     }
   },
@@ -110,17 +131,24 @@ export const aiTaskService = {
   /**
    * Tạo tác vụ xuất dữ liệu
    */
-  queueExportTask: async (request: ExportTaskRequest): Promise<AITask> => {
+  queueExportTask: async (request: ExportTaskRequest): Promise<{ status: string; task_id: string }> => {
     try {
-      const response = await api.post<ApiResponse<AITask>>('/tasks/export', request);
+      console.log('🌐 [API] POST /tasks/export', request);
+      // API trả về: { status: "queued", task_id: "uuid" }
+      const response = await api.post<{ status: string; task_id: string }>('/tasks/export', request);
 
-      if (response.data.success && response.data.data) {
-        return response.data.data;
+      if (response.data) {
+        console.log('✅ [API] Export task queued:', response.data.task_id);
+        return response.data;
       }
 
       throw new Error('Không thể tạo tác vụ xuất dữ liệu');
-    } catch (error) {
-      console.error('Queue export task error:', error);
+    } catch (error: any) {
+      console.error('❌ [API] Queue export task error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
       throw error;
     }
   },

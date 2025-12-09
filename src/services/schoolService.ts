@@ -11,22 +11,30 @@ import { ApiResponse } from '../types/api';
 // ============================================================================
 
 export interface School {
-  id: number;
+  id: string; // UUID - not number!
   name: string;
-  district: string;
-  city: string;
+  code?: string;
   address: string;
+  city: string;
+  district: string;
+  type: 'elementary' | 'middle' | 'high' | 'university' | 'international' | 'other';
   latitude: number;
   longitude: number;
   phone?: string;
   email?: string;
-  website?: string;
-  school_type: 'primary' | 'secondary' | 'high' | 'university' | 'other';
-  students_count?: number;
-  teachers_count?: number;
-  established_year?: number;
-  description?: string;
-  green_initiatives?: string[];
+  website?: string | null;
+  total_students?: number;
+  total_teachers?: number;
+  total_trees?: number;
+  green_area?: number;
+  green_score?: number;
+  is_public?: boolean;
+  data_uri?: string | null;
+  facilities?: any | null;
+  meta_data?: any | null;
+  ngsi_ld_uri?: string | null;
+  created_at?: string;
+  updated_at?: string;
   distance?: number; // km (when using nearby endpoint)
 }
 
@@ -50,7 +58,7 @@ export interface SchoolParams {
   limit?: number;
   district?: string;
   city?: string;
-  school_type?: School['school_type'];
+  type?: School['type']; // Changed from school_type to type
 }
 
 export interface NearbySchoolParams {
@@ -78,29 +86,33 @@ export const schoolService = {
   /**
    * Lấy danh sách trường học với phân trang
    */
-  getSchools: async (params?: SchoolParams): Promise<{ data: School[]; total: number }> => {
+  getSchools: async (params?: SchoolParams): Promise<School[]> => {
     try {
-      const response = await api.get<ApiResponse<{ items: School[]; total: number }>>('/schools', {
+      console.log('🌐 [API] GET /schools', params);
+      // API trả về array trực tiếp, không có wrapper
+      const response = await api.get<School[]>('/schools', {
         params: {
           skip: params?.skip || 0,
           limit: params?.limit || 10,
           district: params?.district,
           city: params?.city,
-          school_type: params?.school_type,
+          type: params?.type, // Changed from school_type to type
         },
       });
 
-      if (response.data.success && response.data.data) {
-        return {
-          data: response.data.data.items,
-          total: response.data.data.total,
-        };
+      if (response.data) {
+        console.log('✅ [API] Schools received:', response.data.length, 'items');
+        return response.data;
       }
 
-      throw new Error('Không thể lấy danh sách trường học');
-    } catch (error) {
-      console.error('Get schools error:', error);
-      throw error;
+      return [];
+    } catch (error: any) {
+      console.error('❌ [API] Get schools error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      return [];
     }
   },
 
@@ -109,41 +121,56 @@ export const schoolService = {
    */
   getNearbySchools: async (params: NearbySchoolParams): Promise<School[]> => {
     try {
-      const response = await api.get<ApiResponse<School[]>>('/schools/nearby', {
+      console.log('🌐 [API] GET /schools/nearby', params);
+      // API trả về array trực tiếp, không có wrapper
+      const response = await api.get<School[]>('/schools/nearby', {
         params: {
           latitude: params.latitude,
           longitude: params.longitude,
-          radius: params.radius || 5, // Default 5km
+          radius_km: params.radius || 5, // API uses radius_km parameter
           limit: params.limit || 10,
         },
       });
 
-      if (response.data.success && response.data.data) {
-        return response.data.data;
+      if (response.data) {
+        console.log('✅ [API] Nearby schools received:', response.data.length, 'items');
+        return response.data;
       }
 
-      throw new Error('Không thể tìm trường học gần đây');
-    } catch (error) {
-      console.error('Get nearby schools error:', error);
-      throw error;
+      return [];
+    } catch (error: any) {
+      console.error('❌ [API] Get nearby schools error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      return [];
     }
   },
 
   /**
    * Lấy thông tin chi tiết trường học
+   * Note: ID phải là UUID string, không phải number
    */
-  getSchoolById: async (id: number): Promise<School> => {
+  getSchoolById: async (id: string): Promise<School | null> => {
     try {
-      const response = await api.get<ApiResponse<School>>(`/schools/${id}`);
+      console.log('🌐 [API] GET /schools/' + id);
+      // API trả về School object trực tiếp hoặc error 422 nếu ID không phải UUID
+      const response = await api.get<School>(`/schools/${id}`);
 
-      if (response.data.success && response.data.data) {
-        return response.data.data;
+      if (response.data) {
+        console.log('✅ [API] School by ID received');
+        return response.data;
       }
 
-      throw new Error('Không thể lấy thông tin trường học');
-    } catch (error) {
-      console.error('Get school by ID error:', error);
-      throw error;
+      return null;
+    } catch (error: any) {
+      console.error('❌ [API] Get school by ID error:', {
+        message: error.message,
+        status: error.response?.status,
+        detail: error.response?.data?.detail
+      });
+      return null;
     }
   },
 
@@ -174,11 +201,7 @@ export const schoolService = {
       });
 
       if (response.data) {
-        console.log('✅ [API] Green courses received:', response.data.map(c => ({
-          id: c.id,
-          title: c.title,
-          category: c.category
-        })));
+        console.log('✅ [API] Green courses received:', response.data.length, 'items');
         return response.data;
       }
 
@@ -187,7 +210,8 @@ export const schoolService = {
       console.error('❌ [API] Get green courses error:', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status
+        status: error.response?.status,
+        url: error.config?.url
       });
       return [];
     }
@@ -196,18 +220,25 @@ export const schoolService = {
   /**
    * Lấy chi tiết khóa học
    */
-  getGreenCourseById: async (id: string): Promise<GreenCourse> => {
+  getGreenCourseById: async (id: string): Promise<GreenCourse | null> => {
     try {
-      const response = await api.get<ApiResponse<GreenCourse>>(`/green-courses/${id}`);
+      console.log('🌐 [API] GET /green-courses/' + id);
+      // API trả về GreenCourse object trực tiếp
+      const response = await api.get<GreenCourse>(`/green-courses/${id}`);
 
-      if (response.data.success && response.data.data) {
-        return response.data.data;
+      if (response.data) {
+        console.log('✅ [API] Green course by ID received');
+        return response.data;
       }
 
-      throw new Error('Không thể lấy thông tin khóa học');
-    } catch (error) {
-      console.error('Get green course by ID error:', error);
-      throw error;
+      return null;
+    } catch (error: any) {
+      console.error('❌ [API] Get green course by ID error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
+      return null;
     }
   },
 
@@ -228,17 +259,24 @@ export const schoolService = {
    */
   getCourseProgress: async (courseId: string): Promise<{ progress: number; completed_lessons: number[] }> => {
     try {
-      const response = await api.get<ApiResponse<{ progress: number; completed_lessons: number[] }>>(
+      console.log('🌐 [API] GET /green-courses/' + courseId + '/progress');
+      // API có thể trả về object trực tiếp
+      const response = await api.get<{ progress: number; completed_lessons: number[] }>(
         `/green-courses/${courseId}/progress`
       );
 
-      if (response.data.success && response.data.data) {
-        return response.data.data;
+      if (response.data) {
+        console.log('✅ [API] Course progress received');
+        return response.data;
       }
 
       return { progress: 0, completed_lessons: [] };
-    } catch (error) {
-      console.error('Get course progress error:', error);
+    } catch (error: any) {
+      console.error('❌ [API] Get course progress error:', {
+        message: error.message,
+        status: error.response?.status,
+        url: error.config?.url
+      });
       return { progress: 0, completed_lessons: [] };
     }
   },

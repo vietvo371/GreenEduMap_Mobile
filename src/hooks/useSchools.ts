@@ -19,7 +19,6 @@ import type {
 
 export const useSchools = (params?: SchoolParams) => {
   const [data, setData] = useState<School[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,12 +26,13 @@ export const useSchools = (params?: SchoolParams) => {
     try {
       setLoading(true);
       setError(null);
+      // API trả về array trực tiếp
       const result = await schoolService.getSchools(params);
-      setData(result.data);
-      setTotal(result.total);
+      setData(result);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách trường học');
       console.error('Fetch schools error:', err);
+      setData([]);
     } finally {
       setLoading(false);
     }
@@ -42,7 +42,7 @@ export const useSchools = (params?: SchoolParams) => {
     fetchData();
   }, [fetchData]);
 
-  return { data, total, loading, error, refetch: fetchData };
+  return { data, total: data.length, loading, error, refetch: fetchData };
 };
 
 export const useNearbySchools = (params: NearbySchoolParams | null) => {
@@ -118,7 +118,6 @@ export const useSchool = (id: number | null) => {
 
 export const useGreenCourses = (params?: GreenCourseParams) => {
   const [data, setData] = useState<GreenCourse[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -127,32 +126,14 @@ export const useGreenCourses = (params?: GreenCourseParams) => {
       setLoading(true);
       setError(null);
       console.log('🔄 [useGreenCourses] Fetching courses with params:', params);
+      // API trả về array trực tiếp
       const result = await schoolService.getGreenCourses(params);
-
-      let courses = [];
-      let totalCount = 0;
-
-      if (Array.isArray(result)) {
-        courses = result;
-        totalCount = result.length;
-      } else if (result && result.data && Array.isArray(result.data)) {
-        courses = result.data;
-        totalCount = result.total || result.data.length;
-      }
-
-      console.log('✅ [useGreenCourses] Success! Received', courses.length, 'courses');
-      console.log('📚 [useGreenCourses] Courses:', courses.map(c => ({
-        id: c.id,
-        title: c.title,
-        category: c.category,
-        difficulty: c.difficulty
-      })));
-
-      setData(courses);
-      setTotal(totalCount);
+      console.log('✅ [useGreenCourses] Success! Received', result.length, 'courses');
+      setData(result);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách khóa học');
       console.error('❌ [useGreenCourses] Error:', err);
+      setData([]);
     } finally {
       setLoading(false);
     }
@@ -162,7 +143,7 @@ export const useGreenCourses = (params?: GreenCourseParams) => {
     fetchData();
   }, [fetchData]);
 
-  return { data, total, loading, error, refetch: fetchData };
+  return { data, total: data.length, loading, error, refetch: fetchData };
 };
 
 export const useGreenCourse = (id: number | null) => {

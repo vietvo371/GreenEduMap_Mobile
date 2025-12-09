@@ -93,16 +93,7 @@ const LearnScreen: StackScreen<'Learn'> = ({ navigation }) => {
             <Text style={styles.headerTitle}>Học tập</Text>
             <Text style={styles.headerSubtitle}>Kiến thức xanh cho tương lai xanh</Text>
           </View>
-          <TouchableOpacity style={styles.profileButton} onPress={handleAchievementsPress}>
-            <ImageBackground
-              source={{ uri: 'https://ui-avatars.com/api/?name=User&background=ffffff&color=4CAF50' }}
-              style={styles.avatar}
-              imageStyle={{ borderRadius: 20 }}
-            />
-            <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>{educationalProgress?.currentLevel || 1}</Text>
-            </View>
-          </TouchableOpacity>
+        
         </View>
       </View>
 

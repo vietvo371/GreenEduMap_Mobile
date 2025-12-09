@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, StatusBar, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, StatusBar, ActivityIndicator, FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,7 +17,10 @@ import {
 } from '../theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useLatestAirQuality, usePublicCurrentWeather } from '../hooks/useEnvironment';
+import { usePublicGreenZones } from '../hooks/useGreenResources';
+import { useGreenCourses } from '../hooks/useSchools';
 import Geolocation from 'react-native-geolocation-service';
+import type { GreenZone, GreenCourse } from '../types/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -27,14 +30,14 @@ const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lon: number } | null>(null);
 
-  // Fetch real AQI data
+  // Fetch real data from APIs
   const { data: aqiData, loading: aqiLoading, refetch: refetchAQI } = useLatestAirQuality(1);
-
-  // Fetch real weather data
   const { data: weatherData, loading: weatherLoading, refetch: refetchWeather } = usePublicCurrentWeather(
     currentLocation?.lat || null,
     currentLocation?.lon || null
   );
+  const { data: greenZones, loading: zonesLoading, refetch: refetchZones } = usePublicGreenZones({ limit: 3 });
+  const { data: courses, loading: coursesLoading, refetch: refetchCourses } = useGreenCourses({ limit: 3 });
 
   // Get current location on mount
   useEffect(() => {
@@ -50,117 +53,43 @@ const HomeScreen = () => {
       },
       (error) => {
         console.log('⚠️ [HomeScreen] Location error:', error);
-        // Fallback to Da Nang location
+        // Fallback to HCM location
         const fallbackLocation = {
-          lat: 16.068882,
-          lon: 108.245350,
+          lat: 10.7769,
+          lon: 106.7009,
         };
-        console.log('📍 [HomeScreen] Using fallback location (Da Nang):', fallbackLocation);
+        console.log('📍 [HomeScreen] Using fallback location (HCM):', fallbackLocation);
         setCurrentLocation(fallbackLocation);
       },
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
     );
   }, []);
 
-  // Log data changes
-  useEffect(() => {
-    if (aqiData && aqiData.length > 0) {
-      console.log('📊 [HomeScreen] AQI Data updated:', {
-        count: aqiData.length,
-        first: aqiData[0]
-      });
-    }
-  }, [aqiData]);
-
-  useEffect(() => {
-    if (weatherData) {
-      console.log('🌤️ [HomeScreen] Weather Data updated:', {
-        city: weatherData.city_name,
-        temp: weatherData.temperature,
-        humidity: weatherData.humidity,
-        weather: weatherData.weather
-      });
-    }
-  }, [weatherData]);
-
-  const quickActions = [
-    {
-      id: 'map',
-      title: 'Bản đồ',
-      subtitle: 'Xem dữ liệu môi trường',
-      icon: 'map-marker-radius',
-      color: theme.colors.success,
-      onPress: () => navigation.navigate('MainTabs', { screen: 'Map' } as any),
-    },
-    {
-      id: 'learn',
-      title: 'Học tập',
-      subtitle: 'Khóa học môi trường',
-      icon: 'book-open-variant',
-      color: theme.colors.info,
-      onPress: () => navigation.navigate('MainTabs', { screen: 'Learn' } as any),
-    },
-    {
-      id: 'actions',
-      title: 'Hành động xanh',
-      subtitle: 'Theo dõi hoạt động',
-      icon: 'leaf',
-      color: theme.colors.warning,
-      onPress: () => navigation.navigate('MainTabs', { screen: 'Actions' } as any),
-    },
-  ];
-
-  const statsCards = [
-    {
-      id: 'carbon',
-      title: 'CO₂ tiết kiệm',
-      value: user?.carbon_saved ? `${user.carbon_saved}kg` : '0kg',
-      change: '+12%',
-      trend: 'up' as const,
-      icon: 'molecule-co2',
-      color: theme.colors.success,
-    },
-    {
-      id: 'points',
-      title: 'Điểm xanh',
-      value: user?.points?.toString() || '0',
-      change: '+8%',
-      trend: 'up' as const,
-      icon: 'star-circle',
-      color: theme.colors.environmental,
-    },
-    {
-      id: 'actions',
-      title: 'Hành động',
-      value: '0',
-      change: '+5',
-      trend: 'up' as const,
-      icon: 'run',
-      color: theme.colors.warning,
-    },
-  ];
-
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refetchAQI(), refetchWeather()]);
+      await Promise.all([
+        refetchAQI(),
+        refetchWeather(),
+        refetchZones(),
+        refetchCourses(),
+      ]);
     } catch (error) {
       console.error('Refresh error:', error);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchAQI, refetchWeather]);
+  }, [refetchAQI, refetchWeather, refetchZones, refetchCourses]);
 
   // Get AQI color based on value
   const getAQIColor = (aqi: number) => {
-    if (aqi <= 50) return theme.colors.success; // Good
-    if (aqi <= 100) return theme.colors.warning; // Moderate
-    if (aqi <= 150) return theme.colors.error; // Unhealthy for sensitive
-    if (aqi <= 200) return '#E53935'; // Unhealthy
-    return '#9C27B0'; // Very unhealthy
+    if (aqi <= 50) return theme.colors.success;
+    if (aqi <= 100) return theme.colors.warning;
+    if (aqi <= 150) return theme.colors.error;
+    if (aqi <= 200) return '#E53935';
+    return '#9C27B0';
   };
 
-  // Get AQI status text
   const getAQIStatus = (aqi: number): string => {
     if (aqi <= 50) return 'Tốt';
     if (aqi <= 100) return 'Trung bình';
@@ -169,7 +98,31 @@ const HomeScreen = () => {
     return 'Rất xấu';
   };
 
-  // Get current AQI
+  const getZoneTypeIcon = (type: string) => {
+    const icons: Record<string, string> = {
+      park: 'tree',
+      forest: 'pine-tree',
+      garden: 'flower',
+      street: 'road-variant',
+      botanical: 'spa',
+      wetland: 'water',
+      reserve: 'nature',
+      other: 'leaf',
+    };
+    return icons[type] || 'leaf';
+  };
+
+  const getCourseIcon = (category: string) => {
+    const icons: Record<string, string> = {
+      environment: 'earth',
+      energy: 'lightning-bolt',
+      climate: 'weather-partly-cloudy',
+      sustainability: 'recycle',
+      other: 'book-open-variant',
+    };
+    return icons[category] || 'book-open-variant';
+  };
+
   const currentAQI = aqiData && aqiData.length > 0 ? aqiData[0] : null;
 
   const renderHeader = () => (
@@ -209,6 +162,42 @@ const HomeScreen = () => {
     </View>
   );
 
+  const renderGreenZoneItem = ({ item }: { item: GreenZone }) => (
+    <TouchableOpacity
+      style={styles.zoneCard}
+      onPress={() => navigation.navigate('MainTabs', { screen: 'Map' } as any)}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.zoneIcon, { backgroundColor: theme.colors.successLight }]}>
+        <Icon name={getZoneTypeIcon(item.zone_type)} size={ICON_SIZE.lg} color={theme.colors.success} />
+      </View>
+      <View style={styles.zoneContent}>
+        <Text style={styles.zoneName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.zoneDetail} numberOfLines={1}>
+          {item.area_sqm ? `${(item.area_sqm / 1000).toFixed(1)}k m²` : 'N/A'} • {item.tree_count || 0} cây
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderCourseItem = ({ item }: { item: GreenCourse }) => (
+    <TouchableOpacity
+      style={styles.courseCard}
+      onPress={() => navigation.navigate('MainTabs', { screen: 'Learn' } as any)}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.courseIcon, { backgroundColor: theme.colors.infoLight }]}>
+        <Icon name={getCourseIcon(item.category)} size={ICON_SIZE.lg} color={theme.colors.info} />
+      </View>
+      <View style={styles.courseContent}>
+        <Text style={styles.courseTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.courseDetail} numberOfLines={1}>
+          {item.duration_weeks ? `${item.duration_weeks} tuần` : 'N/A'}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={theme.colors.success} />
@@ -221,79 +210,16 @@ const HomeScreen = () => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Dashboard Stats */}
-        <View style={styles.section}>
-          <View style={styles.statsRow}>
-            {statsCards.map((stat, index) => (
-              <TouchableOpacity
-                key={stat.id}
-                style={[styles.statCard, {
-                  backgroundColor:
-                    index === 0 ? theme.colors.success
-                      : index === 1 ? theme.colors.environmental
-                        : theme.colors.warning
-                }]}
-                activeOpacity={0.8}
-              >
-                <View style={styles.statIconContainer}>
-                  <Icon name={stat.icon} size={ICON_SIZE.xl} color="rgba(255, 255, 255, 0.9)" />
-                </View>
-                <View style={styles.statContent}>
-                  <Text style={styles.statValue}>{stat.value}</Text>
-                  <Text style={styles.statTitle}>{stat.title}</Text>
-                  <View style={styles.statTrend}>
-                    <Icon
-                      name={stat.trend === 'up' ? 'trending-up' : 'trending-down'}
-                      size={ICON_SIZE.xs}
-                      color="rgba(255, 255, 255, 0.9)"
-                    />
-                    <Text style={styles.statChange}>{stat.change}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Quick Actions Grid */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Chức năng chính</Text>
-            <View style={styles.sectionDivider} />
-          </View>
-          <View style={styles.actionGrid}>
-            {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action.id}
-                style={styles.actionItem}
-                onPress={action.onPress}
-                activeOpacity={0.7}
-              >
-                <View style={styles.actionCard}>
-                  <View style={[styles.actionIconBox, { backgroundColor: action.color }]}>
-                    <Icon name={action.icon} size={ICON_SIZE.xl} color={theme.colors.white} />
-                  </View>
-                  <View style={styles.actionContent}>
-                    <Text style={styles.actionTitle}>{action.title}</Text>
-                    <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
-                  </View>
-                  <View style={styles.actionArrow}>
-                    <Icon name="chevron-right" size={ICON_SIZE.sm} color={theme.colors.textSecondary} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* Air Quality Card */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Chất lượng không khí</Text>
-            <View style={styles.sectionDivider} />
+            <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Map' } as any)}>
+              <Text style={styles.seeAllText}>Xem thêm</Text>
+            </TouchableOpacity>
           </View>
           {aqiLoading ? (
-            <View style={[styles.dataCard, { justifyContent: 'center', alignItems: 'center' }]}>
+            <View style={[styles.dataCard, styles.centerContent]}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
           ) : currentAQI ? (
@@ -305,8 +231,10 @@ const HomeScreen = () => {
               <View style={styles.dataCardHeader}>
                 <Icon name="air-filter" size={ICON_SIZE.lg} color={getAQIColor(currentAQI.aqi)} />
                 <View style={styles.dataCardInfo}>
-                  <Text style={styles.dataCardLocation}>{currentAQI.location}</Text>
-                  <Text style={styles.dataCardCity}>{currentAQI.city}</Text>
+                  <Text style={styles.dataCardLocation}>{currentAQI.station_name}</Text>
+                  <Text style={styles.dataCardCity}>
+                    {currentAQI.latitude.toFixed(4)}, {currentAQI.longitude.toFixed(4)}
+                  </Text>
                 </View>
               </View>
               <View style={styles.aqiValueContainer}>
@@ -320,7 +248,7 @@ const HomeScreen = () => {
               </View>
             </TouchableOpacity>
           ) : (
-            <View style={[styles.dataCard, { justifyContent: 'center', alignItems: 'center' }]}>
+            <View style={[styles.dataCard, styles.centerContent]}>
               <Text style={styles.noDataText}>Không có dữ liệu AQI</Text>
             </View>
           )}
@@ -330,10 +258,12 @@ const HomeScreen = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Thời tiết hiện tại</Text>
-            <View style={styles.sectionDivider} />
+            <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Map' } as any)}>
+              <Text style={styles.seeAllText}>Xem thêm</Text>
+            </TouchableOpacity>
           </View>
           {weatherLoading ? (
-            <View style={[styles.dataCard, { justifyContent: 'center', alignItems: 'center' }]}>
+            <View style={[styles.dataCard, styles.centerContent]}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
             </View>
           ) : weatherData ? (
@@ -347,14 +277,19 @@ const HomeScreen = () => {
                 <View style={styles.dataCardInfo}>
                   <Text style={styles.dataCardLocation}>{weatherData.city_name}</Text>
                   <Text style={styles.dataCardCity}>
-                    {weatherData.location.coordinates[1].toFixed(2)}, {weatherData.location.coordinates[0].toFixed(2)}
+                    {weatherData.location 
+                      ? `${weatherData.location.coordinates[1].toFixed(2)}, ${weatherData.location.coordinates[0].toFixed(2)}`
+                      : `${weatherData.latitude?.toFixed(2)}, ${weatherData.longitude?.toFixed(2)}`
+                    }
                   </Text>
                 </View>
               </View>
               <View style={styles.weatherContainer}>
                 <View style={styles.weatherMain}>
                   <Text style={styles.weatherTemp}>{Math.round(weatherData.temperature)}°C</Text>
-                  <Text style={styles.weatherDescription}>{weatherData.weather.description}</Text>
+                  <Text style={styles.weatherDescription}>
+                    {weatherData.weather?.description || weatherData.weather_description || 'N/A'}
+                  </Text>
                 </View>
                 <View style={styles.weatherDetails}>
                   <View style={styles.weatherDetailItem}>
@@ -363,30 +298,83 @@ const HomeScreen = () => {
                   </View>
                   <View style={styles.weatherDetailItem}>
                     <Icon name="weather-windy" size={ICON_SIZE.sm} color={theme.colors.textLight} />
-                    <Text style={styles.weatherDetailText}>{weatherData.wind.speed} m/s</Text>
+                    <Text style={styles.weatherDetailText}>
+                      {weatherData.wind?.speed || weatherData.wind_speed || 0} m/s
+                    </Text>
                   </View>
                 </View>
               </View>
             </TouchableOpacity>
           ) : (
-            <View style={[styles.dataCard, { justifyContent: 'center', alignItems: 'center' }]}>
+            <View style={[styles.dataCard, styles.centerContent]}>
               <Text style={styles.noDataText}>Không có dữ liệu thời tiết</Text>
             </View>
           )}
         </View>
 
-        {/* Environmental Tips */}
+        {/* Green Zones */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Mẹo môi trường hôm nay</Text>
-            <View style={styles.sectionDivider} />
+            <Text style={styles.sectionTitle}>Khu vực xanh</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Map' } as any)}>
+              <Text style={styles.seeAllText}>Xem tất cả</Text>
+            </TouchableOpacity>
           </View>
+          {zonesLoading ? (
+            <View style={styles.centerContent}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+          ) : greenZones && greenZones.length > 0 ? (
+            <FlatList
+              data={greenZones}
+              renderItem={renderGreenZoneItem}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+            />
+          ) : (
+            <View style={styles.centerContent}>
+              <Text style={styles.noDataText}>Chưa có dữ liệu khu vực xanh</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Green Courses */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Khóa học môi trường</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Learn' } as any)}>
+              <Text style={styles.seeAllText}>Xem tất cả</Text>
+            </TouchableOpacity>
+          </View>
+          {coursesLoading ? (
+            <View style={styles.centerContent}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+          ) : courses && courses.length > 0 ? (
+            <View style={styles.coursesGrid}>
+              {courses.map((course) => (
+                <View key={course.id} style={styles.courseCardWrapper}>
+                  {renderCourseItem({ item: course })}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.centerContent}>
+              <Text style={styles.noDataText}>Chưa có khóa học</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Environmental Tip */}
+        <View style={styles.section}>
           <View style={styles.tipCard}>
             <View style={styles.tipIconContainer}>
               <Icon name="lightbulb-on" size={ICON_SIZE['2xl']} color={theme.colors.warning} />
             </View>
             <View style={styles.tipContent}>
-              <Text style={styles.tipTitle}>Tiết kiệm nước</Text>
+              <Text style={styles.tipTitle}>💡 Mẹo môi trường hôm nay</Text>
               <Text style={styles.tipText}>
                 Tắt vòi nước khi đánh răng có thể tiết kiệm đến 6 lít nước mỗi phút!
               </Text>
@@ -504,162 +492,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: SCREEN_PADDING.horizontal,
+    paddingHorizontal: SCREEN_PADDING.horizontal,
+    paddingTop: SPACING.xl,
     paddingBottom: SPACING['4xl'],
-    marginTop: SPACING['2xl'],
   },
   section: {
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING['2xl'],
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
   },
   sectionTitle: {
     fontSize: FONT_SIZE.lg,
     fontWeight: '700',
     color: theme.colors.text,
   },
-  // Stats Card Styles
-  statsRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    marginTop: -SPACING['3xl'],
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.md,
-    minHeight: hp('16%'),
-    justifyContent: 'space-between',
-    ...theme.shadows.lg,
-  },
-  statIconContainer: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.sm,
-    marginBottom: SPACING.xs,
-  },
-  statContent: {
-    marginTop: SPACING.xs,
-  },
-  statValue: {
-    fontSize: FONT_SIZE['3xl'],
-    fontWeight: '800',
-    color: theme.colors.white,
-    marginBottom: 4,
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  statTitle: {
-    fontSize: FONT_SIZE.xs,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '600',
-    marginBottom: SPACING.xs,
-  },
-  statTrend: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statChange: {
-    fontSize: FONT_SIZE.xs,
-    color: 'rgba(255, 255, 255, 0.95)',
-    fontWeight: '700',
-  },
-  // Section Header Styles
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-    gap: SPACING.md,
-  },
-  sectionDivider: {
-    flex: 1,
-    height: 2,
-    backgroundColor: theme.colors.success + '30',
-    borderRadius: 1,
-  },
-  // Action Grid Styles
-  actionGrid: {
-    gap: SPACING.md,
-  },
-  actionItem: {
-    borderRadius: BORDER_RADIUS.xl,
-    overflow: 'hidden',
-    backgroundColor: theme.colors.white,
-    ...theme.shadows.md,
-  },
-  actionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    gap: SPACING.md,
-  },
-  actionIconBox: {
-    width: wp('14%'),
-    height: wp('14%'),
-    borderRadius: BORDER_RADIUS.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionContent: {
-    flex: 1,
-  },
-  actionTitle: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: 2,
-  },
-  actionSubtitle: {
-    fontSize: FONT_SIZE.xs,
-    color: theme.colors.textSecondary,
-    fontWeight: '500',
-  },
-  actionArrow: {
-    opacity: 0.5,
-  },
-  // Tip Card Styles
-  tipCard: {
-    backgroundColor: theme.colors.white,
-    borderRadius: BORDER_RADIUS.xl,
-    padding: SPACING.lg,
-    flexDirection: 'row',
-    gap: SPACING.md,
-    ...theme.shadows.md,
-  },
-  tipIconContainer: {
-    width: wp('14%'),
-    height: wp('14%'),
-    borderRadius: BORDER_RADIUS.lg,
-    backgroundColor: theme.colors.warningLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tipContent: {
-    flex: 1,
-  },
-  tipTitle: {
-    fontSize: FONT_SIZE.md,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: SPACING.xs,
-  },
-  tipText: {
+  seeAllText: {
     fontSize: FONT_SIZE.sm,
-    color: theme.colors.textSecondary,
-    lineHeight: FONT_SIZE.sm * 1.5,
+    color: theme.colors.success,
+    fontWeight: '600',
   },
-  systemStatus: {
-    flexDirection: 'row',
+  centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    marginTop: SPACING.md,
-    opacity: 0.7,
-  },
-  systemStatusText: {
-    fontSize: FONT_SIZE.xs,
-    color: theme.colors.textSecondary,
+    minHeight: 100,
   },
   // Data Card Styles (AQI, Weather)
   dataCard: {
@@ -667,7 +526,6 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.lg,
     ...theme.shadows.md,
-    minHeight: 120,
   },
   dataCardHeader: {
     flexDirection: 'row',
@@ -692,7 +550,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     color: theme.colors.textLight,
     textAlign: 'center',
-    paddingVertical: SPACING.xl,
   },
   // AQI Specific
   aqiValueContainer: {
@@ -758,6 +615,124 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZE.sm,
     color: theme.colors.textLight,
     fontWeight: '500',
+  },
+  // Green Zones Horizontal List
+  horizontalList: {
+    paddingRight: SPACING.md,
+  },
+  zoneCard: {
+    width: wp('65%'),
+    backgroundColor: theme.colors.white,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    marginRight: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...theme.shadows.sm,
+  },
+  zoneIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: BORDER_RADIUS.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  zoneContent: {
+    flex: 1,
+  },
+  zoneName: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  zoneDetail: {
+    fontSize: FONT_SIZE.sm,
+    color: theme.colors.textLight,
+  },
+  // Green Courses Grid
+  coursesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -SPACING.xs,
+  },
+  courseCardWrapper: {
+    width: '100%',
+    paddingHorizontal: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  courseCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...theme.shadows.sm,
+  },
+  courseIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: BORDER_RADIUS.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  courseContent: {
+    flex: 1,
+  },
+  courseTitle: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  courseDetail: {
+    fontSize: FONT_SIZE.sm,
+    color: theme.colors.textLight,
+  },
+  // Tip Card
+  tipCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.lg,
+    flexDirection: 'row',
+    gap: SPACING.md,
+    ...theme.shadows.md,
+  },
+  tipIconContainer: {
+    width: wp('14%'),
+    height: wp('14%'),
+    borderRadius: BORDER_RADIUS.lg,
+    backgroundColor: theme.colors.warningLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tipContent: {
+    flex: 1,
+  },
+  tipTitle: {
+    fontSize: FONT_SIZE.md,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: SPACING.xs,
+  },
+  tipText: {
+    fontSize: FONT_SIZE.sm,
+    color: theme.colors.textSecondary,
+    lineHeight: FONT_SIZE.sm * 1.5,
+  },
+  systemStatus: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: SPACING.md,
+    opacity: 0.7,
+  },
+  systemStatusText: {
+    fontSize: FONT_SIZE.xs,
+    color: theme.colors.textSecondary,
   },
 });
 

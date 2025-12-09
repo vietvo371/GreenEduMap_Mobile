@@ -9,6 +9,8 @@ export { schoolService } from './schoolService';
 export { greenResourceService } from './greenResourceService';
 export { aiTaskService } from './aiTaskService';
 export { healthService } from './healthService';
+export { notificationService } from './notificationService';
+export { userDataService } from './userDataService';
 
 // Export types
 export type {
@@ -52,3 +54,15 @@ export type {
   // Health types
   HealthStatus,
 } from './healthService';
+
+export type {
+  // User Data types
+  Favorite,
+  Contribution,
+  Activity,
+  UserSettings,
+  AddFavoriteRequest,
+  SubmitContributionRequest,
+  LogActivityRequest,
+  UpdateSettingsRequest,
+} from './userDataService';

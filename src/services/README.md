@@ -11,6 +11,7 @@ Authentication và quản lý tài khoản người dùng.
 - `POST /api/v1/auth/register` - Đăng ký tài khoản mới
 - `POST /api/v1/auth/login` - Đăng nhập
 - `POST /api/v1/auth/refresh` - Làm mới access token
+- `GET /api/v1/auth/validate-token` - Kiểm tra token hợp lệ
 - `GET /api/v1/auth/me` - Lấy thông tin người dùng hiện tại
 - `PATCH /api/v1/auth/profile` - Cập nhật thông tin hồ sơ
 - `POST /api/v1/auth/change-password` - Đổi mật khẩu
@@ -56,6 +57,7 @@ Quản lý dữ liệu chất lượng không khí và thời tiết.
 
 **Public Endpoints (không cần auth):**
 - `GET /api/open-data/air-quality` - Dữ liệu AQI công khai
+- `GET /api/open-data/air-quality/location` - Lấy AQI gần vị trí cụ thể
 - `GET /api/open-data/weather/current` - Thời tiết hiện tại công khai
 - `GET /api/open-data/weather/forecast` - Dự báo thời tiết 7 ngày
 
@@ -103,7 +105,7 @@ import { schoolService } from '@/services';
 const nearbySchools = await schoolService.getNearbySchools({
   latitude: 10.7769,
   longitude: 106.7009,
-  radius: 5, // 5km
+  radius: 5, // API uses radius_km parameter
   limit: 10
 });
 
@@ -124,42 +126,68 @@ await schoolService.enrollCourse(1);
 ### 4. **greenResourceService.ts** - Tài nguyên xanh
 Quản lý thông tin về khu vực xanh và tài nguyên môi trường.
 
-**Endpoints (Public - không cần auth):**
+**Public Endpoints (không cần auth):**
 
 **Green Zones:**
-- `GET /api/open-data/green-zones` - Lấy danh sách khu vực xanh
+- `GET /api/open-data/green-zones` - Lấy danh sách khu vực xanh công khai
 - `GET /api/open-data/green-zones/nearby` - Tìm khu vực xanh gần đây
-- `GET /api/open-data/green-zones/{id}` - Lấy chi tiết khu vực xanh
+- `GET /api/open-data/green-zones/{id}` - Lấy chi tiết khu vực xanh công khai
 
 **Green Resources:**
-- `GET /api/open-data/green-resources` - Lấy danh sách tài nguyên xanh
-- `GET /api/open-data/green-resources/nearby` - Tìm tài nguyên xanh gần đây
-- `GET /api/open-data/green-resources/{id}` - Lấy chi tiết tài nguyên xanh
+- `GET /api/open-data/green-resources` - Lấy danh sách tài nguyên xanh công khai
+- `GET /api/open-data/green-resources/{id}` - Lấy chi tiết tài nguyên xanh công khai
 
-**Catalog:**
+**Recycling Centers:**
+- `GET /api/open-data/centers` - Lấy danh sách trung tâm tái chế công khai
+- `GET /api/open-data/centers/nearby` - Tìm trung tâm tái chế gần vị trí
+
+**Catalog & Export:**
 - `GET /api/open-data/catalog` - Lấy danh mục dữ liệu mở
+- `GET /api/open-data/export/air-quality` - Xuất dữ liệu AQI
+
+**Authenticated Endpoints (cần auth):**
+
+**Green Zones:**
+- `GET /api/v1/green-zones` - Lấy danh sách khu vực xanh
+- `GET /api/v1/green-zones/{id}` - Lấy chi tiết khu vực xanh theo ID
+
+**Green Resources:**
+- `GET /api/v1/green-resources` - Lấy danh sách tài nguyên xanh
+- `GET /api/v1/green-resources/{id}` - Lấy chi tiết tài nguyên xanh theo ID
+
+**Recycling Centers:**
+- `GET /api/v1/centers` - Lấy danh sách trung tâm tái chế
 
 **Ví dụ sử dụng:**
 ```typescript
 import { greenResourceService } from '@/services';
 
-// Tìm công viên gần đây
-const nearbyParks = await greenResourceService.getNearbyGreenZones({
+// Tìm công viên gần đây (Public)
+const nearbyParks = await greenResourceService.getPublicNearbyGreenZones({
   latitude: 10.7769,
   longitude: 106.7009,
   radius: 5,
   limit: 10
 });
 
-// Lấy danh sách trung tâm tái chế
-const resources = await greenResourceService.getGreenResources({
+// Lấy danh sách khu vực xanh (Authenticated)
+const greenZones = await greenResourceService.getGreenZones({
   skip: 0,
   limit: 10,
-  type: 'recycling_center'
+  zone_type: 'park'
 });
 
-// Lấy danh mục
+// Lấy danh sách trung tâm tái chế công khai
+const centers = await greenResourceService.getPublicCenters({
+  skip: 0,
+  limit: 10
+});
+
+// Lấy danh mục dữ liệu mở
 const catalog = await greenResourceService.getCatalog();
+
+// Xuất dữ liệu AQI
+const exportData = await greenResourceService.exportAirQuality('json');
 ```
 
 ---
@@ -337,5 +365,43 @@ import type {
 ## 🔄 Phiên bản
 
 - **API Version**: v1
-- **Last Updated**: 2025-01-06
+- **Last Updated**: 2025-12-09
 - **Maintained by**: GreenEduMap Team
+
+---
+
+## 📌 Ghi chú quan trọng
+
+### Public vs Authenticated Endpoints
+
+**Public Endpoints** (`/api/open-data/*`):
+- Không cần authentication
+- Truy cập tự do
+- Rate limit thấp hơn
+- Dữ liệu có thể bị hạn chế
+
+**Authenticated Endpoints** (`/api/v1/*`):
+- Cần Bearer Token
+- Rate limit cao hơn
+- Truy cập đầy đủ dữ liệu
+- Có thể thực hiện actions (create, update, delete)
+
+### Health Check Endpoint
+
+Endpoint `/health` nằm ở root level (không có prefix `/api/v1`):
+```typescript
+// Correct
+GET https://api.greenedumap.io.vn/health
+
+// Incorrect
+GET https://api.greenedumap.io.vn/api/v1/health
+```
+
+### Parameter Names
+
+Một số endpoint sử dụng tên parameters khác nhau:
+- Schools nearby: `radius_km` (không phải `radius`)
+- Green zones nearby: `lat`, `lon` (không phải `latitude`, `longitude`)
+- Centers nearby: `radius_km`
+
+Luôn kiểm tra API documentation để biết tên parameter chính xác.

@@ -20,7 +20,6 @@ import type {
 
 export const useGreenZones = (params?: GreenZoneParams) => {
   const [data, setData] = useState<GreenZone[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,22 +27,23 @@ export const useGreenZones = (params?: GreenZoneParams) => {
     try {
       setLoading(true);
       setError(null);
+      // API trả về array trực tiếp
       const result = await greenResourceService.getGreenZones(params);
-      setData(result.data);
-      setTotal(result.total);
+      setData(result);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách khu vực xanh');
       console.error('Fetch green zones error:', err);
+      setData([]);
     } finally {
       setLoading(false);
     }
-  }, [params?.skip, params?.limit, params?.zone_type, params?.city, params?.district]);
+  }, [params?.skip, params?.limit, params?.zone_type]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  return { data, total, loading, error, refetch: fetchData };
+  return { data, total: data.length, loading, error, refetch: fetchData };
 };
 
 export const useNearbyGreenZones = (params: NearbyParams | null) => {
@@ -73,6 +73,36 @@ export const useNearbyGreenZones = (params: NearbyParams | null) => {
       fetchData();
     }
   }, [fetchData, params]);
+
+  return { data, loading, error, refetch: fetchData };
+};
+
+export const usePublicGreenZones = (params?: GreenZoneParams) => {
+  const [data, setData] = useState<GreenZone[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('🔄 [usePublicGreenZones] Fetching public green zones');
+      // API trả về array trực tiếp
+      const result = await greenResourceService.getPublicGreenZones(params);
+      console.log('✅ [usePublicGreenZones] Received', result.length, 'zones');
+      setData(result);
+    } catch (err: any) {
+      setError(err.message || 'Không thể tải khu vực xanh');
+      console.error('❌ [usePublicGreenZones] Error:', err);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [params?.skip, params?.limit, params?.zone_type]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   return { data, loading, error, refetch: fetchData };
 };
